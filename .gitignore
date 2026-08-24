@@ -1,0 +1,28 @@
+# 这个项目零依赖零构建,没有产物目录可忽略。
+# 下面都是环境噪音。
+
+# 操作系统
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# 编辑器 / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Node(项目本身不用依赖,但万一以后引了工具链)
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# 临时与调试产物
+*.log
+*.tmp
+/tmp/
+/scratch/
+broken.html
+*.bak

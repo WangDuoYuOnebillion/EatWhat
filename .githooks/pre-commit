@@ -1,0 +1,59 @@
+#!/bin/sh
+# ==========================================================================
+# pre-commit · 提交前自动跑 check.js
+# --------------------------------------------------------------------------
+# 为什么:菜谱和食材是纯手写数据,退化是静默的 —— 改错一个 id、删掉一个
+# 食材,页面照样打开,只是某些食材永远搜不到菜。项目零依赖零构建,没有
+# 编译期检查,check.js 是唯一的护栏,但靠人记得跑就等于没有。
+#
+# 关键细节:校验的是「暂存区里那一份」,不是工作区那一份。
+# 否则会出现「工作区已经改好、暂存的还是坏的」却照样提交成功的情况。
+#
+# 启用方式(clone 后跑一次):
+#   git config core.hooksPath .githooks
+#
+# 想临时跳过:git commit --no-verify(不建议)
+# ==========================================================================
+
+set -u
+
+# 没装 node 就别拦着人提交,只提醒
+if ! command -v node >/dev/null 2>&1; then
+  echo "pre-commit: 没找到 node,跳过 check.js(建议装上,否则数据没人守)"
+  exit 0
+fi
+
+# index.html 没进本次提交就没必要校验
+if ! git diff --cached --name-only --diff-filter=ACM | grep -q '^index\.html$'; then
+  exit 0
+fi
+
+# check.js 本身也可能还没提交,优先用工作区的
+if [ ! -f check.js ]; then
+  echo "pre-commit: 找不到 check.js,跳过校验"
+  exit 0
+fi
+
+TMP=$(mktemp 2>/dev/null || echo ".git/ew-precommit-tmp")
+# 取出暂存区的 index.html —— 这才是真正要提交的内容
+if ! git show :index.html > "$TMP" 2>/dev/null; then
+  echo "pre-commit: 取暂存区的 index.html 失败,跳过校验"
+  rm -f "$TMP"
+  exit 0
+fi
+
+node check.js "$TMP"
+RC=$?
+rm -f "$TMP"
+
+if [ "$RC" -ne 0 ]; then
+  echo ""
+  echo "──────────────────────────────────────────────"
+  echo " 数据校验未通过,提交已中止。"
+  echo " 上面列出的 error 修完再提交。"
+  echo " 确有理由跳过:git commit --no-verify"
+  echo "──────────────────────────────────────────────"
+  exit 1
+fi
+
+exit 0

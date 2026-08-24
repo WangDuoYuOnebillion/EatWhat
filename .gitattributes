@@ -1,0 +1,23 @@
+# 全项目统一 LF 行尾。
+# 这个项目从头到尾是 LF(每次构建都校验过 CR=0),而 Windows 上 git 默认
+# core.autocrlf=true 会在检出时转成 CRLF —— 那会让 index.html 的行尾变得
+# 不一致,diff 也会整片飘红。这里显式钉死。
+* text=auto eol=lf
+
+# 明确按文本处理的
+*.html   text eol=lf
+*.js     text eol=lf
+*.md     text eol=lf
+*.json   text eol=lf
+*.css    text eol=lf
+
+# 二进制,不做任何行尾转换
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.webp   binary
+*.ico    binary
+*.pdf    binary
+*.woff   binary
+*.woff2  binary
