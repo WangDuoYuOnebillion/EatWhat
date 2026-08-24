@@ -468,6 +468,20 @@ $('#q').focus();
 
 **影响:** 现在有两个远程 —— `github`(EdgeOne 部署源,推它触发重部署)+ `origin`(Gitee 镜像)。更新流程改为两个都推,见 [DEPLOY.md](DEPLOY.md)「以后怎么更新」。方案 C 与 `gh-pages` 分支结构不变。
 
+### 终局修订 · 2026-08-24(同会话):正式托管定为 Cloudflare Pages ✅ 已上线
+
+**为什么再改:** EdgeOne Makers 从 GitHub `gh-pages` 部署**构建成功了**,但成功弹窗写明:**默认域名链接仅提供 3 小时限时预览,且不支持去掉 `?eo_token=…` 直接访问,要长期用必须绑自定义域名。** 而自定义域名在中国大陆加速区**要 ICP 备案**(买域名 + 约 1–2 周)。也就是说 EdgeOne 的免费默认域名**根本不能拿来长期分享** —— 我此前"默认域名免备案能直接用"的判断,对 EdgeOne 不成立(那条只对已下线的 Gitee Pages 那种共享备案域名成立)。
+
+**新决策(用户在选项里拍板):正式托管换成 Cloudflare Pages。**
+- **免费、永久、无 token、无需备案**,从 GitHub `WangDuoYuOnebillion/EatWhat` 的 `gh-pages` 分支自动部署(`git push github gh-pages` 即重部署)。
+- **已上线:** https://eatwhat-cui.pages.dev(我用 Claude for Chrome 在用户浏览器里建的项目;桌面已验 app 正常加载、无存储红条)。
+- 构建配置:Framework preset = None,Build command 留空,Build output directory = `/`(根),生产分支 `gh-pages`。
+- **EdgeOne 项目保留但降级**为"日后若买域名+备案,可换回国内 CDN"的选项;**COS 仍是另一条备选**。
+
+**代价/风险(诚实记录):** Cloudflare 是**海外**服务器。选国内托管的初衷(微信里稳定打开)在这条路上**没有保证** —— 国内多数网络能打开、微信一般能进,但可能偶发慢/不稳。**是否可接受,取决于用户与家人的真机+微信实测结果**(P8 关闭条件)。若实测家人打不开,回退到"买域名+备案+EdgeOne"。
+
+**这推翻了本 ADR 原文"排除 Vercel/Netlify 等海外托管"的判断** —— 当时的前提是"有国内免费且持久的选项"(Gitee Pages)。该前提已不存在:国内法规下,大陆服务器的公开持久网址必须备案,免费且免备案的持久托管只剩海外。所以在"零成本即时可用(海外)"与"要花钱等备案(国内)"之间,先取前者验证,不通再走后者。
+
 ---
 
 ## 待定 / 未来需要决策的问题

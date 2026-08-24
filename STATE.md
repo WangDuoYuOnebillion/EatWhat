@@ -3,46 +3,45 @@
 > **这是跨会话交接的唯一权威。** 每次会话开头读它,结尾重写它。
 > 如果它和别的文档冲突,以它为准,并顺手把别的文档订正掉。
 
-**最后更新:** 2026-08-24 · 会话 #7(含推送到 Gitee)
+**最后更新:** 2026-08-24 · 会话 #7(已上线 Cloudflare Pages)
 
 ---
 
 ## 一句话:现在在哪
 
 应用是**「小付,今天吃什么?」v1.0**,纯手机端单文件 Web App。
-**P8 部署阶段:代码侧全部就绪、已推 Gitee;差最后一步 —— 用户去腾讯云 EdgeOne Pages 点部署。**
-(原定 Gitee Pages 中途发现已下线,改道 EdgeOne Pages,详见下。)
+**P8 部署阶段:✅ 已上线到 Cloudflare Pages —— https://eatwhat-cui.pages.dev。差最后一步:用户 + 家人在真机/微信里验收(海外线路国内能不能稳定打开)。**
 
 会话 #7 产出:
 - `apple-touch-icon.png`(180×180 棕碗图标)+ `<head>` 里的 `apple-touch-icon` / `icon` 链接
-- `DEPLOY.md`(EdgeOne Pages 主线 + 腾讯云 COS 兜底 + 更新流程)
-- `gh-pages` orphan 分支(方案 C:只含 `index.html` + 图标),已推送到 Gitee
-- [ADR-022](DECISIONS.md)(含平台改道的修订记录)
+- `gh-pages` orphan 分支(方案 C:只含 `index.html` + 图标),已推 GitHub + Gitee
+- **正式上线:Cloudflare Pages,https://eatwhat-cui.pages.dev**(免费/永久/免备案,从 GitHub `gh-pages` 自动部署)
+- `DEPLOY.md` + [ADR-022](DECISIONS.md)(记满了三次平台改道的全过程)
 
 **远端仓库(两个,都已推 `main` + `gh-pages`,远端哈希与本地一致):**
-- **GitHub `WangDuoYuOnebillion/EatWhat`(EdgeOne 的部署源)** ← remote 名 `github`,main `a7f7a7a` / gh-pages `a4bfae9`
-- Gitee `wangchen1995/eat-what`(国内镜像/备份) ← remote 名 `origin`
+- **GitHub `WangDuoYuOnebillion/EatWhat`** ← remote 名 `github`,main `a7f7a7a` / gh-pages `a4bfae9`。**Cloudflare Pages 的部署源**,`git push github gh-pages` 触发自动重部署。
+- Gitee `wangchen1995/eat-what` ← remote 名 `origin`,国内镜像/备份。
 
-**⚠️ 两处改道,都记在 [ADR-022 修订](DECISIONS.md):**
-1. **Gitee 免费 Pages 已于 2024-05 下线** → 托管改走**腾讯云 EdgeOne Makers**(原 EdgeOne Pages,2026-06 改名;免费 + 国内 CDN),COS 保留兜底。
-2. **EdgeOne 连 Gitee 时生产分支下拉读不到 `gh-pages`(暂无数据)** → 代码加推一份到 **GitHub**,EdgeOne 改连 GitHub(它对 GitHub 支持最好)。
+**⚠️ 托管平台一路踩坑,最终落到 Cloudflare(全过程见 [ADR-022](DECISIONS.md) 三段修订):**
+1. **Gitee 免费 Pages 已于 2024-05 下线** → 改 EdgeOne。
+2. **EdgeOne 连 Gitee 读不到 `gh-pages` 分支** → 代码加推 GitHub,EdgeOne 改连 GitHub。
+3. **EdgeOne 免费默认域名只有 3 小时 + token,长期用要绑备案域名** → 正式托管改 **Cloudflare Pages**(免费永久免备案,已上线)。EdgeOne / COS 保留为"日后买域名+备案换国内 CDN"的备选。
 
-**P8 还没关闭。** 就差两步,**都在用户侧**(控制台操作,我登不进去):
+**P8 还差最后一步:真机 + 微信验收(在用户侧)。**
+桌面已验:`eatwhat-cui.pages.dev` 首页/网格/底栏正常,**无存储红条**(https 下 localStorage OK)。剩下必须真机测:
 
-1. 🔴 **注册腾讯云 + 实名 → EdgeOne Makers 连 GitHub 部署**。(EdgeOne Pages 已改名 Makers;**连 Gitee 时生产分支下拉读不到 `gh-pages`「暂无数据」,故改用 GitHub**,代码已推 GitHub。)控制台 `console.cloud.tencent.com/edgeone` → Makers → 场景选择大厅→导入 Git 仓库→**授权 GitHub**→选 `WangDuoYuOnebillion/EatWhat`→**生产分支 `gh-pages`、框架预设"其他/静态"、构建命令留空、输出目录 `./`**、加速区随意(只用默认域名,不涉备案)。完整步骤见 [DEPLOY.md](DEPLOY.md)。
-2. 🔴 **真机验收** —— #1 手机访问 / #2 微信打开 / #3 真机重开存住 / #5 真机加主屏图标 / #6 走一遍更新流程。
-
-本地能验的(#3 存储 / #4 无红条 / #5 图标就位 / #7 check.js 零 error)会话 #7 已全过。
+1. 🔴 手机 Safari 打开 → 微信发自己 → **发 1–2 个家人**(海外线路国内微信能否稳定打开=这条路唯一未知数)
+2. 🔴 勾食材→关掉浏览器→重开数据在 → 加主屏是棕碗图标
 
 ---
 
-## 🔴 下个会话开工前:先确认用户 EdgeOne 部署了没
+## 🔴 下个会话开工前:先问真机验收结果
 
-- **用户已用 EdgeOne Pages 部署好、有能访问的默认域名?**
-  → 拿到线上地址(形如 `xxx.edgeone.app`),记进 DEPLOY.md,陪用户跑真机验收 #1/#2/#3/#5/#6。全过 → 关闭 P8 → 进 **P2 手机真机走查**。
-- **部署卡住了?**(找不到 Gitee 授权 / 构建 404 / 微信打不开)
-  → 对照 [DEPLOY.md](DEPLOY.md) 的 FAQ;构建配置最容易错(必须留空构建命令、输出 `./`、分支 `gh-pages`)。实在不行切腾讯云 COS 兜底(DEPLOY.md 末节)。
-- **注意:** P2 本身也需要"已上线 + 真机",所以上线是后续 P2/P6 的共同前置。
+- **家人都能在微信里顺利打开 `eatwhat-cui.pages.dev`?**
+  → P8 关闭,Cloudflare 就是最终方案。进 **P2 手机真机走查**(计时音、输入法、安全区、长按菜单…)。
+- **有人打不开 / 很慢?**
+  → 海外线路不行,启动**买域名 + ICP 备案 + 回连 EdgeOne**(EdgeOne 项目已在腾讯云建好,连的是 GitHub `gh-pages`,到时只差在 EdgeOne 里绑一个备案好的自定义域名)。买域名当天 + 备案约 1–2 周,见 [DEPLOY.md](DEPLOY.md)。
+- **更新线上的方法**(记牢):改完 `index.html`/图标 → 同步到 `gh-pages` → `git push github gh-pages`,Cloudflare 自动重部署。流程见 [DEPLOY.md](DEPLOY.md)。
 
 ---
 
@@ -50,7 +49,7 @@
 
 阶段号只增不改。**"下一步做什么"看 [ROADMAP.md](ROADMAP.md) 的「执行顺序」表,不看编号大小。**
 
-当前顺序:P0 ✅ → P5.1 ✅ → P1 ✅ → P4 ✅ → **P8 🟡(我这部分完成,待用户部署)** → P2 → P6 → P3 → P5 → P9 → P7
+当前顺序:P0 ✅ → P5.1 ✅ → P1 ✅ → P4 ✅ → **P8 🟢(已上线,待真机验收关闭)** → P2 → P6 → P3 → P5 → P9 → P7
 
 ---
 
@@ -61,7 +60,7 @@ P0   调研→构建→文档      ████████████ 100%  �
 P5.1 改名+iOS+修搜索      ████████████ 100%  ✅ 会话 #6
 P1   纯手机化改造         ████████████ 100%  ✅ 会话 #6
 P4   校验脚本落盘         ████████████ 100%  ✅ 会话 #6
-P8   部署到免费托管       ██████████░░  85%  🟡 仓库已推,差用户开 Pages + 真机验收
+P8   部署到免费托管       ███████████░  95%  🟢 已上线 Cloudflare,差真机+微信验收
 P2   手机真机走查         ░░░░░░░░░░░░   0%  (依赖 P8 真正上线)
 P6   加到主屏 / PWA       ░░░░░░░░░░░░   0%
 P3   手机原生手感         ░░░░░░░░░░░░   0%
@@ -98,7 +97,7 @@ P7   v1.1 全量回归        ░░░░░░░░░░░░   0%
 
 | # | 问题 | 卡住谁 | 我的倾向 |
 |---|---|---|---|
-| 1 | **用户去不去部署** —— P8 收尾、P2、P6 全卡在这一步 | **下个会话必确认** | 陪用户走 DEPLOY.md;不做则后续推不动 |
+| 1 | **Cloudflare(海外)在国内微信能否稳定打开** —— P8 能否关闭就看这个 | **用户 + 家人真机实测** | 先信这条免费路;家人打不开再走备案+EdgeOne |
 | 2 | **要不要 service worker(离线缓存)** —— 应用零网络请求,离线价值不大 | P6 | 可做可不做,成本低。部署到 https 后原路线冲突已消(见 ADR-022) |
 | 3 | **小程序走哪条路** —— 原生重写 vs `web-view` 套 H5 | P9 | 大概率原生:`web-view` 需已备案域名,个人主体走不通 |
 | 4 | **小程序与单文件红线冲突** —— 需抽出共用数据+算法模块 | P9 | 开工前必须新增 ADR,不要绕过去 |
@@ -108,7 +107,8 @@ P7   v1.1 全量回归        ░░░░░░░░░░░░   0%
 
 ## 已知限制(现状,不是待办)
 
-- **真机从未验过。** 所有测试都在 headless / 本地浏览器里跑。设备是 **iPhone 13**(系统版本待确认)。P2 消掉这一条。
+- **真机从未验过。** 所有测试都在 headless / 桌面浏览器里跑(含线上 `eatwhat-cui.pages.dev` 桌面验证:正常加载、无存储红条)。设备是 **iPhone 13**(系统版本待确认)。真机 + 微信这一步待用户测,P2 消掉这一条。
+- **Cloudflare 海外线路对国内微信的稳定性未知。** 桌面能开不代表家人手机微信能开。这是选免费海外托管的已知风险,验收里专门测「发家人」这一条。
 - **`file://` 下大概率存不住数据。** 已有页面顶部红条兜底,不会静默丢。**部署到 https 后此问题消失**(本次已在本地 http 验证无红条、存得住)。
 - **加到主屏图标已就位但真机没验。** `apple-touch-icon.png` 已生成并链接,`<link>` 本地解析正常;真机「添加到主屏」的实际效果待用户测。
 - ~~**`gh-pages` 分支只在本地,没有远端。**~~ ✅ 会话 #7 已推送到 **GitHub `WangDuoYuOnebillion/EatWhat`(部署源)** 和 Gitee `wangchen1995/eat-what`(镜像),`main` + `gh-pages` 都在。

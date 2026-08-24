@@ -37,7 +37,7 @@
 | 2 | **P5.1** | 改名 + iOS 适配 + 修中文搜索 | ✅ 会话 #6 | 1(已用) |
 | 3 | **P1** | 纯手机化改造(砍桌面适配) | ✅ 会话 #6 | 1(已用) |
 | 4 | **P4** | 校验脚本落盘(`check.js`) | ✅ 会话 #6 | 1(已用) |
-| 5 | **P8** | **部署到免费托管(Gitee Pages)** | 🟡 我这部分完成,待用户部署实测 | 1 |
+| 5 | **P8** | **部署到免费托管(→ 最终 Cloudflare Pages)** | 🟢 已上线 eatwhat-cui.pages.dev,待真机+微信验收 | 1 |
 | 6 | **P2** | 手机真机走查(部署后重新裁剪过) | ⬜ | 1 |
 | 7 | **P6** | 加到主屏 / PWA | ⬜ | 1 |
 | 8 | **P3** | 手机原生手感(手势 / 反馈 / 滚动) | ⬜ | 1 |
@@ -141,20 +141,20 @@ Gitee Pages 免费版要求仓库公开 —— 意味着 `CLAUDE.md` / `STATE.md
 
 ### 会话 #7 实测结果(2026-08-24)
 
-我能在本地验的都过了,真机相关的等用户部署后测。详见 [WORKLOG](WORKLOG.md) #016、[ADR-022](DECISIONS.md)、[DEPLOY.md](DEPLOY.md)。
+**已上线:https://eatwhat-cui.pages.dev(Cloudflare Pages,从 GitHub `gh-pages` 部署)。** 托管平台一路踩坑(Gitee Pages 下线 → EdgeOne 读不到 Gitee 分支 → EdgeOne 默认域名只有 3 小时),最终落到 Cloudflare。全过程见 [WORKLOG](WORKLOG.md) #016、[ADR-022](DECISIONS.md)、[DEPLOY.md](DEPLOY.md)。
 
-| # | 项 | 我这边 | 待用户实测 |
+| # | 项 | 状态 | 说明 |
 |---|---|:--:|---|
-| 1 | 能访问 | 本地 http 200 ✅ | 手机 Safari 打开线上地址 |
-| 2 | 微信内能开 | — | 微信里点链接就能用 |
-| 3 | 数据能存住 | 空→选→刷新恰好留存 ✅ | 真机上完全关掉浏览器再重开 |
-| 4 | 无存储警告 | http 下无红条 ✅ | (https 下同理,顺带确认) |
-| 5 | 加主屏有图标 | `apple-touch-icon.png` 就位、`<link>` 解析 ✅ | 真机「添加到主屏」看是不是棕碗图标 |
-| 6 | 更新流程可复现 | 流程写死在 DEPLOY.md | 按它走一遍改动→上线 |
-| 7 | 不回归 | `check.js` 0 error ✅ | — |
+| 1 | 能访问 | ✅ 桌面 / 🔴 真机待测 | 线上地址桌面正常;手机 Safari 待用户测 |
+| 2 | 微信内能开 | 🔴 待测 | **海外线路,这条是关键未知数**;发家人实测 |
+| 3 | 数据能存住 | ✅ 本地 / 🔴 真机待测 | 桌面无红条;真机完全关掉重开待测 |
+| 4 | 无存储警告 | ✅ | 线上 https 桌面无红条 |
+| 5 | 加主屏有图标 | ✅ 就位 / 🔴 真机待测 | `<link>` 解析正常;真机加主屏看棕碗图标 |
+| 6 | 更新流程可复现 | ✅ 流程写死 | `git push github gh-pages` → Cloudflare 自动重部署 |
+| 7 | 不回归 | ✅ | `check.js` 0 error |
 
-**产出:** `apple-touch-icon.png`、`DEPLOY.md`、本地 `gh-pages` 分支(方案 C)、`<head>` 图标链接。
-**用户要做:** 注册/实名/建公开仓库/推送/开 Pages —— 清单见 [DEPLOY.md](DEPLOY.md)。做完后回来跑 1/2/3/5/6 真机验收,全过才关闭 P8。
+**产出:** 上线网址 `eatwhat-cui.pages.dev`、`apple-touch-icon.png`、`DEPLOY.md`、`gh-pages` 分支(方案 C,已推 GitHub+Gitee)、`<head>` 图标链接。
+**关闭 P8 的唯一条件:** 用户 + 家人在真机/微信里跑 1/2/3/5,尤其 **#2 家人微信能打开**。全过 → 关闭;打不开 → 转"买域名+备案+EdgeOne"。
 
 ---
 

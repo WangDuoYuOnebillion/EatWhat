@@ -1,15 +1,18 @@
 # DEPLOY · 部署与更新手册
 
 > 目标:把「小付,今天吃什么?」变成一个**网址**,微信里点开就能用,能存数据、能加到主屏。
-> 本手册对应 [ROADMAP.md](ROADMAP.md) 的 **P8** 阶段。方向性选择见 [ADR-022](DECISIONS.md)。
+> 本手册对应 [ROADMAP.md](ROADMAP.md) 的 **P8** 阶段。方向性选择与全过程见 [ADR-022](DECISIONS.md)。
 
 ---
 
-## ⚠️ 路径变更(会话 #7):Gitee Pages 已下线
+## ✅ 已上线
 
-原计划托管到 **Gitee Pages**,但实操时发现仓库「服务」菜单里**根本没有 Gitee Pages 选项**。查证:**Gitee 免费 Pages 已于 2024-05 整体下线,Pages Pro 也停了个人购买入口** —— 与账号无关,这条路对所有个人用户都没了。
+## 👉 https://eatwhat-cui.pages.dev
 
-改走 **腾讯云 EdgeOne Makers**(原名 EdgeOne Pages,2026-06 改名,功能不变)—— 完全免费 + 国内 CDN + 支持直连我们已有的 Gitee 仓库。原兜底 COS 降为二线。详见 [ADR-022](DECISIONS.md)。
+**托管:Cloudflare Pages** · 从 GitHub `WangDuoYuOnebillion/EatWhat` 的 `gh-pages` 分支自动部署 · 免费 / 永久 / 免备案。
+
+桌面已验:首页、食材网格、底栏正常,无存储红条(https 下 localStorage 正常)。
+**唯一待验:** 海外线路在国内微信能否稳定打开 —— 见下面「真机验收」。
 
 ---
 
@@ -17,12 +20,12 @@
 
 | 决策 | 选择 | 理由 |
 |---|---|---|
-| **代码仓库(EdgeOne 源)** | **GitHub `WangDuoYuOnebillion/EatWhat`** | EdgeOne 连 Gitee 时**生产分支下拉框读不到 `gh-pages`(暂无数据)**,GitHub 集成才正常;方案 C 不变,`gh-pages` 分支只含两个部署文件 |
-| 代码仓库(镜像) | Gitee `wangchen1995/eat-what` | 已推,留作国内镜像/备份;两个远程都推同样的 `main` + `gh-pages` |
-| ~~托管平台~~ | ~~Gitee Pages~~ | ❌ 已下线,弃用 |
-| **托管平台(主线)** | **腾讯云 EdgeOne Makers**(原 EdgeOne Pages) | 完全免费、国内 CDN、连 GitHub 仓库(push 即自动重部署,没有 Gitee Pages 那种"手动点更新") |
-| 托管平台(兜底) | 腾讯云 COS 静态网站 | EdgeOne 万一卡住时切它,月费几分钱 |
-| 域名 | **用 EdgeOne 分配的默认预览域名** | 默认域名可直接访问、**不需要备案**;自定义域名在中国大陆加速区才要备案,先不折腾 |
+| 代码仓库(部署源) | **GitHub `WangDuoYuOnebillion/EatWhat`** | Cloudflare 盯它的 `gh-pages` 分支;方案 C 不变,该分支只含两个部署文件 |
+| 代码仓库(镜像) | Gitee `wangchen1995/eat-what` | 国内镜像/备份;两个远程都推 `main` + `gh-pages` |
+| **托管平台(正式)** | **Cloudflare Pages** | 免费、永久、无 token、免备案,连 GitHub push 即自动重部署 |
+| 备选一(要国内 CDN 时) | 腾讯云 EdgeOne Makers + **买域名 + 备案** | 国内访问/微信最稳,但要花钱 + 等备案 1–2 周。项目已建好,只差绑备案域名 |
+| 备选二 | 腾讯云 COS 静态网站 | 另一条国内路,同样需备案域名才持久 |
+| 域名 | **Cloudflare 默认 `eatwhat-cui.pages.dev`** | 永久有效、免备案。以后要好记域名可在 Cloudflare 绑自定义域名(它免备案) |
 
 **要上线的文件只有两个,且必须在同一目录(已在 `gh-pages` 分支根目录备好):**
 
@@ -33,96 +36,53 @@ apple-touch-icon.png   ← 缺了它,加到主屏就是网页缩略图而不是�
 
 ---
 
-## 进度:哪些做完了,还差哪步
+## 平台踩坑简史(为什么绕了三圈)
 
-| 步 | 事项 | 状态 |
-|---|---|---|
-| 1 | Gitee/GitHub 注册 + 实名 | ✅ 已完成 |
-| 2 | 建仓库(Gitee `eat-what` + GitHub `EatWhat`) | ✅ 已建 |
-| 3 | 两个远程都推 `main` + `gh-pages` | ✅ 已推送(远端哈希与本地一致) |
-| 4 | 注册腾讯云 + 实名 | 🔴 **待你做** |
-| 5 | EdgeOne Makers **连 GitHub** 部署 | 🔴 **待你做**(控制台操作,我点不了) |
-| 6 | 手机真机验收 | 🔴 待 #5 出地址后测 |
+完整推理见 [ADR-022](DECISIONS.md) 的三段修订。一句话版:
 
----
+1. **Gitee 免费 Pages 已于 2024-05 下线** → 弃。
+2. **EdgeOne 连 Gitee 读不到 `gh-pages` 分支(暂无数据)** → 代码加推 GitHub,EdgeOne 改连 GitHub。
+3. **EdgeOne 免费默认域名只有 3 小时 + `?eo_token=`,长期用要绑备案域名** → 正式托管改 **Cloudflare Pages**(免费永久免备案)。
 
-## 🔴 你要做的:EdgeOne Makers 部署(主线)
-
-> 注意:EdgeOne **Pages 已更名为 Makers**(2026-06 品牌升级),功能不变。下面按新名字走。
-> **控制台入口(别进文档站):** https://console.cloud.tencent.com/edgeone
-> `cloud.tencent.com/document/...` 是文档,不是控制台。
-
-### 1. 注册 + 实名
-- 用微信/QQ 登录腾讯云,完成**实名认证**(个人实名即可)。
-
-### 2. 进 Makers → 场景选择大厅 → 导入 Git 仓库
-- 进 [边缘安全加速平台 EO 控制台](https://console.cloud.tencent.com/edgeone) → 左侧找到 **Makers**。
-- 首次进入会出现**「场景选择大厅」**,四个入口:**导入 Git 仓库** / 从模板开始 / 直接上传 / Agent 模板 —— 选 **「导入 Git 仓库」**。
-- **授权 GitHub**(不是 Gitee!),然后选中 `WangDuoYuOnebillion/EatWhat`。
-
-> **为什么用 GitHub 不用 Gitee:** 实操时 EdgeOne 连 Gitee,生产分支下拉框搜 `gh-pages` 显示**「暂无数据」**(EdgeOne 对 Gitee 的分支识别不行)。改推 GitHub 后分支能正常读到。Gitee 那个仓库留作国内镜像。
-
-### 3. 构建配置(纯静态,别填错)
-
-| 字段 | 填什么 |
-|---|---|
-| 生产分支 / Branch | **`gh-pages`** ← 关键,不是 main |
-| 框架预设 / Framework | **无 / None / 静态** |
-| 构建命令 / Build command | **留空**(或随便填 `echo skip`) |
-| 输出目录 / Output directory | **`./`**(就是根目录) |
-
-> 为什么选 `gh-pages`:那个分支根目录恰好只有 `index.html` + 图标,输出目录填 `./` 就直接上线这两个文件,不会把 CLAUDE.md 之类的内部文档带上去。
-
-### 4. 选加速区域
-- 选 **中国大陆**(朋友都在国内,访问最快)。
-- 我们**只用默认域名**,所以"自定义域名要备案"这条不影响你。
-
-### 5. 部署 → 拿地址
-- 点部署,等 1–2 分钟。成功后 EdgeOne 给一个**默认预览域名**(形如 `xxx.edgeone.app` 之类),可直接在浏览器打开。**把这个地址发我**,我记进文档。
-
-> **备选:懒得连 Git?** 新建项目时选**「直接上传」**,把 `index.html` + `apple-touch-icon.png` 两个文件拖进去即可 —— 更快,但以后更新要手动再传一次(连 Git 的话 `git push` 就自动重部署)。
+**结论:** 国内法规下,大陆服务器的公开持久网址必须备案;免费又免备案的持久托管只剩海外。所以先用海外的 Cloudflare 零成本上线,家人实测不通再花钱走备案。
 
 ---
 
-## 🔴 部署后:手机真机验收(P8 关闭条件)
+## Cloudflare Pages 是怎么建的(可复现)
 
-**用手机,不要用电脑。** 地址换成 EdgeOne 给你的那个。
+会话 #7 用 Claude for Chrome 在用户浏览器里操作:
 
-- 手机 **Safari** 打开地址 → 应用应正常加载。
-- 把链接发到**微信**给自己 → 在微信里直接点开 → 应能用(这才是"发给别人"的真实场景)。
-  - 万一微信提示"非官方网页"或打不开,先确认电脑浏览器能开;是微信侧拦截的话,换个聊天窗重发、或走 COS 兜底。
-- 勾几样食材 → **完全关掉浏览器** → 重开 → 数据还在。
-- 页面顶部**不应**出现「这个环境不让保存数据」红条。
-- Safari 里「分享 → 添加到主屏幕」→ 主屏上应是**那只棕色小碗图标**,不是网页缩略图。
+1. dash.cloudflare.com → 左侧 **Compute → Workers & Pages** → **Create application**
+2. 顶部 **Pages** 流程(底部「Looking to deploy Pages? Get started」)→ **Import an existing Git repository**
+3. **Connect GitHub**(sudo 二次验证的密码由用户自己输)→ 选 `WangDuoYuOnebillion/EatWhat`
+4. 配置:
+   - Project name `eatwhat`(实际域名被占,自动成 `eatwhat-cui.pages.dev`)
+   - **Production branch = `gh-pages`**
+   - **Framework preset = None**
+   - **Build command = 留空**
+   - **Build output directory = `/`(根)**
+5. **Save and Deploy** → 约 15 秒完成 → 出 `eatwhat-cui.pages.dev`
 
 ---
 
-## 腾讯云 COS 兜底(EdgeOne 也走不通时才用)
+## 🔴 手机真机验收(P8 关闭条件)
 
-什么时候切:EdgeOne 实名/部署卡死,或它给的默认域名在微信里被拦。
+**用手机,不要用电脑。** 地址:`https://eatwhat-cui.pages.dev`
 
-**1. 开通**
-- 登录 https://console.cloud.tencent.com/cos → 创建存储桶(Bucket)。
-- 地域挑个国内的(如 `广州 ap-guangzhou`)。访问权限选 **公有读私有写**。
+1. 手机 **Safari** 打开地址 → 应正常加载。
+2. 把链接发到**微信**给自己 → 直接点开能用。
+3. **发给 1–2 个家人** → 他们那边也能打开 —— **这是海外托管唯一的未知数,最重要。**
+4. 勾几样食材 → **完全关掉浏览器** → 重开 → 数据还在。
+5. Safari「分享 → 添加到主屏幕」→ 主屏是**那只棕色小碗图标**,不是网页缩略图。
 
-**2. 开静态网站**
-- 进桶 →「基础配置 → 静态网站」→ 开启。索引文档填 `index.html`。开启后它给一个**静态网站访问节点**域名。
-
-**3. 上传两个文件**
-- 把 `index.html` 和 `apple-touch-icon.png` 传到桶的**根目录**。
-
-**4. 访问**
-- 用第 2 步那个**静态网站节点域名**打开(不是默认对象访问域名,那个会触发下载而不是渲染)。验收同上。
-
-> COS 没有"手动更新"步骤,重新上传即最新。
+- **家人都能顺利打开** → P8 收工,Cloudflare 就是最终方案。
+- **有人打不开 / 很慢** → 海外线路不友好,走下面「备选一:买域名 + 备案 + EdgeOne」。
 
 ---
 
 ## 以后怎么更新(改完代码 → 上线)
 
-**日常都在 `main` 分支改**(所有文档、`check.js`、`index.html` 都在这)。改完要上线时,把两个部署文件同步到 `gh-pages`:
-
-> 两个远程:`github`(EdgeOne 盯着它,推它才会触发重部署)+ `origin`(Gitee,国内镜像)。下面把两个都推。
+**日常都在 `main` 分支改。** 要上线时,把两个部署文件同步到 `gh-pages` 并推 GitHub(Cloudflare 盯的是它):
 
 ```bash
 # 1. 在 main 上改代码、提交(pre-commit 会自动跑 check.js)
@@ -134,34 +94,54 @@ git checkout gh-pages
 git checkout main -- index.html apple-touch-icon.png
 git commit -am "deploy: 同步 index.html + 图标"
 
-# 3. 推送(github 那条会触发 EdgeOne 重部署)+ 切回 main
+# 3. 推送(github 那条触发 Cloudflare 重部署)+ 切回 main
 git push github gh-pages && git push origin gh-pages
 git checkout main
 ```
 
-- **EdgeOne 连了 GitHub**:第 3 步 `git push github gh-pages` 后**自动重新部署**,几分钟后线上就是新的,无需手动操作 ✅
-- **用的是 EdgeOne 直接上传 / 或 COS**:改完后到控制台**重新上传**这两个文件。
+- **Cloudflare 连了 GitHub**:第 3 步 `git push github gh-pages` 后**自动重新部署**,1–2 分钟后线上更新,无需手动操作 ✅
 - 只有 `index.html` / `apple-touch-icon.png` 变了才需要同步 `gh-pages`;只改文档不用碰 —— 这是方案 C 的好处。
 - 嫌两条命令麻烦,只推 `github` 也能上线;推 `origin` 只是顺手维护国内镜像。
 
 ---
 
+## 备选一:买域名 + 备案 + EdgeOne(海外线路不通时)
+
+EdgeOne Makers 项目会话 #7 已在腾讯云建好(连 GitHub `gh-pages`,控制台 `console.cloud.tencent.com/edgeone`),构建能成功。**唯一缺的是一个备案好的自定义域名** —— EdgeOne 免费默认域名只有 3 小时,不能长期用。
+
+步骤:
+1. 买个便宜域名(`.cn` 约 ¥25–35/年,`.com` 约 ¥55–75/年)→ 域名实名认证(当天)。
+2. 用腾讯云账号做 **ICP 备案**:身份证 + 手机 + App 人脸核验;可能还需名下有一个满足条件的云资源(如轻量服务器,买 3 个月)才发备案服务号。管局审核 **约 3–20 个工作日,常见 1–2 周**。
+3. 备案通过 → 在 EdgeOne 项目里**绑定这个自定义域名** → 用它访问。国内 CDN,微信最稳。
+
+> 时间账详见对话记录:买域名当天,备案首次约 1–2 周。备案通过前该域名在大陆打不开。
+
+---
+
+## 备选二:腾讯云 COS 静态网站
+
+同样需要备案域名才持久,过程比 EdgeOne 更手动,一般不如备选一。留档:
+
+1. https://console.cloud.tencent.com/cos → 创建存储桶,地域挑国内(如 `广州 ap-guangzhou`),权限 **公有读私有写**。
+2. 桶「基础配置 → 静态网站」→ 开启,索引文档 `index.html`。
+3. 把 `index.html` + `apple-touch-icon.png` 传到桶**根目录**。
+4. 用静态网站节点域名访问;长期公开同样要绑备案域名。COS 无"手动更新"步骤,重传即最新。
+
+---
+
 ## 常见问题
 
-**Q:EdgeOne 连仓库后,生产分支下拉框读不到 `gh-pages`(暂无数据)?**
-这正是我们从 Gitee 换到 GitHub 的原因 —— EdgeOne 对 Gitee 的分支识别不行。**授权 GitHub、选 `WangDuoYuOnebillion/EatWhat`**,分支就能读到。仍不行就用「直接上传」两个文件兜底。
-
-**Q:构建失败 / 部署后 404?**
-八成是构建配置填错。纯静态站:构建命令**留空**、输出目录 **`./`**、分支 **`gh-pages`**。别选 React/Vue 之类框架预设。
+**Q:Cloudflare 里改配置在哪?**
+dash.cloudflare.com → Compute → Workers & Pages → 点 `eatwhat` 项目 → Settings(改分支/构建)、Custom domains(绑自定义域名,Cloudflare 绑域名免备案)。
 
 **Q:微信里打开白屏 / 打不开?**
-先确认电脑浏览器能开。能开就多半是微信侧缓存/拦截,换聊天窗重发、或链接后加 `?v=2`。仍不行切 COS 兜底。
+先确认电脑浏览器能开。能开就多半是海外线路波动或微信侧缓存 —— 换聊天窗重发、链接后加 `?v=2`、或过一会儿再试。持续打不开就走「备选一」备案国内 CDN。
 
 **Q:加到主屏还是网页缩略图,没有小碗图标?**
-确认访问 `你的地址/apple-touch-icon.png` 能看到图片(200),且它和 `index.html` 同目录。iOS 会缓存旧图标,删掉主屏图标重加一次。
+访问 `https://eatwhat-cui.pages.dev/apple-touch-icon.png` 应能看到图片(200)。iOS 会缓存旧图标,删掉主屏图标重加一次。
 
 **Q:数据存不住?**
-EdgeOne / COS 都是 https,localStorage 正常可用,不该出现红条。若出现多半是浏览器隐私模式,换正常模式。
+Cloudflare 是 https,localStorage 正常。若出现红条多半是浏览器隐私模式,换正常模式。
 
 **Q:能不能只发一个 `index.html` 文件给别人,不折腾托管?**
 在 iPhone 上基本走不通:微信不预览 `.html`,得手动"存到文件 App → 挑浏览器打开",普通人走不完。这正是本阶段做托管的原因。

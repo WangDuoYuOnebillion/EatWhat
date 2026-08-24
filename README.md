@@ -8,10 +8,11 @@
 
 ## 怎么用
 
-**双击 `index.html`** 就行。不用装任何东西,不用联网。
+**在线地址(推荐):👉 https://eatwhat-cui.pages.dev** —— 手机浏览器或微信里直接打开就能用、能存数据、能加到主屏。托管在 Cloudflare Pages,部署与更新见 [DEPLOY.md](DEPLOY.md)。
 
-- 手机上(推荐):**部署成一个网址**,微信里点开就能用、能存数据、能加到主屏 —— 步骤见 [DEPLOY.md](DEPLOY.md)。直接发 `index.html` 文件在 iPhone 上基本走不通(微信不预览 `.html`)
-- 手机上(临时):把 `index.html` 传到手机,用浏览器打开
+也可以**双击本地 `index.html`**,不用装任何东西、不用联网。
+
+- 手机上(临时/离线):把 `index.html` 传到手机用浏览器打开(直接把文件发微信在 iPhone 上走不通 —— 微信不预览 `.html`,所以才做了在线地址)
 - 换设备:复制这一个文件过去即可;数据可在「我的 → 导出数据」搬迁
 
 > 加到主屏后是那只**棕色小碗图标**(`apple-touch-icon.png`),不是网页缩略图 —— 前提是按 [DEPLOY.md](DEPLOY.md) 把图标和 `index.html` 放在同一目录。
