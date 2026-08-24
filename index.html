@@ -1,0 +1,4064 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F5F0E8">
+<title>小付，今天吃什么？</title>
+<!-- iOS:加到主屏后全屏运行、状态栏跟随、禁用电话号码自动识别 -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="今天吃什么">
+<meta name="format-detection" content="telephone=no,date=no,address=no,email=no">
+<!-- 加到主屏图标:iOS 只认真实 PNG 文件(不认 data: URI),必须与 index.html 同目录部署 -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="apple-touch-icon.png">
+<style>
+/* ==========================================================================
+   今天吃什么 · 样式层
+   风格:暖米色杂志风 / 纸质食谱书
+   规则:无阴影 · 1px 实线分隔 · 4px 小圆角 · 衬线标题 · 移动优先
+   ========================================================================== */
+
+:root{
+  --bg:#F5F0E8;
+  --surface:#FFFDF8;
+  --surface-2:#EDE4D3;
+  --ink:#2B2015;
+  --ink-2:#7A6A56;
+  --ink-3:#A2937E;
+  --primary:#8B4513;
+  --primary-soft:#A9673A;
+  --warn:#C2703D;
+  --danger:#A63A2E;
+  --ok:#5C7A4A;
+  --line:#DCCFB8;
+  --line-2:#C9B99C;
+  --serif:'Noto Serif SC','Source Han Serif SC','Songti SC','STSong','SimSun',serif;
+  --sans:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei','Hiragino Sans GB','Helvetica Neue',Arial,sans-serif;
+  --tabh:58px;
+  --frame:480px;   /* 手机画框宽度上限 */
+}
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+/* iOS:禁止横屏时自动放大字号 */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{
+  /* iOS:阻止整页橡皮筋回弹 */
+  overscroll-behavior-y:none;
+  /* 画框外的底色(比 --bg 深一档)。手机上被 #app 完全盖住,只在桌面露出 */
+  background:#E4DBC9;
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:15px;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font-family:inherit;color:inherit}
+/* iOS Safari 聚焦 font-size < 16px 的输入框会强制放大整页,所以这里必须 16px */
+input,select,textarea{font-size:16px;-webkit-appearance:none;appearance:none;border-radius:4px}
+input[type=search]::-webkit-search-cancel-button,
+input[type=search]::-webkit-search-decoration{-webkit-appearance:none;appearance:none}
+button{cursor:pointer;border:none;background:none;padding:0;font-size:inherit}
+/* iOS:去掉长按选中/放大镜/弹出菜单,消除 300ms 点击延迟与双击缩放 */
+button,.dish,.ing,.chip,.shop li,.sw,.tabbar button,.viz,.cb{
+  -webkit-touch-callout:none;-webkit-user-select:none;user-select:none;
+  touch-action:manipulation;
+}
+/* 步骤与菜谱正文要允许选中复制,不能被上面一条波及 */
+.sheet-bd,.cook-bd,.steps,.tipbox{-webkit-user-select:text;user-select:text}
+h1,h2,h3,h4{font-family:var(--serif);font-weight:600;margin:0;letter-spacing:.02em}
+a{color:var(--primary)}
+::selection{background:#E6D3B8}
+
+/* ---------- 布局骨架 ---------- */
+/* iOS:100vh 含地址栏会被裁,dvh 才是真实可视高度(不支持时回落 100vh) */
+/* max-width 就是「手机画框」:桌面下收成一条 480px 居中列 */
+#app{
+  min-height:100vh;min-height:100dvh;
+  display:flex;flex-direction:column;
+  max-width:var(--frame);margin:0 auto;
+  background:var(--bg);
+  outline:1px solid var(--line);   /* outline 不占布局宽度,手机上画在屏幕外 */
+  /* 极淡纸纹:两层低对比斜纹,总对比度 < 2% */
+  background-image:
+    repeating-linear-gradient(115deg, rgba(139,69,19,.014) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(25deg,  rgba(139,69,19,.010) 0 1px, transparent 1px 6px);
+}
+.topbar{
+  position:sticky;top:0;z-index:40;
+  background:var(--bg);
+  border-bottom:1px solid var(--line);
+  /* 加到主屏全屏运行时,顶部要让开刘海/灵动岛 */
+  padding:calc(10px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right))
+          10px calc(14px + env(safe-area-inset-left));
+  display:flex;align-items:center;gap:10px;
+}
+.brand{font-family:var(--serif);font-size:19px;font-weight:700;color:var(--primary);letter-spacing:.02em;min-width:0;white-space:nowrap}
+@media(max-width:400px){.brand{font-size:17px;letter-spacing:0}}
+@media(max-width:344px){.brand{font-size:15.5px}}
+.brand small{display:block;font-family:var(--sans);font-size:10.5px;font-weight:400;color:var(--ink-3);letter-spacing:.14em;margin-top:-2px}
+.topbar .grow{flex:1}
+.iconbtn{
+  width:44px;height:44px;border:1px solid var(--line);border-radius:4px;
+  background:var(--surface);display:grid;place-items:center;font-size:17px;color:var(--ink-2);
+}
+.iconbtn:active{background:var(--surface-2)}
+
+main{
+  flex:1;width:100%;
+  padding:14px calc(14px + env(safe-area-inset-right))
+          calc(var(--tabh) + 26px + env(safe-area-inset-bottom))
+          calc(14px + env(safe-area-inset-left));
+}
+
+/* ---------- 底部 Tab(移动优先) ---------- */
+.tabbar{
+  /* fixed 元素默认相对视口,加了画框后会横跨整个桌面宽度 —— 必须自己收进画框 */
+  position:fixed;bottom:0;z-index:50;
+  left:50%;transform:translateX(-50%);width:min(var(--frame),100%);
+  height:calc(var(--tabh) + env(safe-area-inset-bottom));
+  padding:0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  background:var(--surface);
+  border-top:1px solid var(--line);
+  display:grid;grid-template-columns:repeat(5,1fr);
+}
+.tabbar button{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  font-size:11px;color:var(--ink-3);letter-spacing:.02em;position:relative;
+}
+.tabbar button i{font-style:normal;font-size:19px;line-height:1;filter:grayscale(.55);opacity:.7}
+.tabbar button.on{color:var(--primary);font-weight:600}
+.tabbar button.on i{filter:none;opacity:1}
+.tabbar .dot{
+  position:absolute;top:6px;left:50%;margin-left:8px;
+  min-width:15px;height:15px;padding:0 3px;border-radius:8px;
+  background:var(--danger);color:#fff;font-size:9.5px;line-height:15px;text-align:center;font-weight:700;
+}
+
+/* ---------- 通用元件 ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:4px}
+.sec{margin-bottom:20px}
+.sec-h{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.sec-h h2{font-size:16.5px}
+.sec-h .n{font-size:11.5px;color:var(--ink-3);font-family:var(--sans)}
+.sec-h .grow{flex:1}
+.hint{font-size:12.5px;color:var(--ink-2);line-height:1.6}
+.muted{color:var(--ink-3)}
+.rule{height:1px;background:var(--line);margin:14px 0;border:0}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  min-height:44px;padding:0 18px;border-radius:4px;
+  border:1px solid var(--primary);background:var(--primary);color:#FFFCF5;
+  font-size:15px;font-weight:600;letter-spacing:.03em;
+}
+.btn:active{background:#733A10}
+.btn.ghost{background:transparent;color:var(--primary)}
+.btn.ghost:active{background:var(--surface-2)}
+.btn.plain{background:var(--surface);border-color:var(--line-2);color:var(--ink)}
+.btn.plain:active{background:var(--surface-2)}
+.btn.sm{min-height:38px;padding:0 12px;font-size:13px;font-weight:500}
+.btn.wide{width:100%}
+.btn[disabled]{opacity:.4;pointer-events:none}
+
+.tag{
+  display:inline-block;padding:1px 7px;border-radius:3px;
+  background:var(--surface-2);color:var(--ink-2);
+  font-size:11px;letter-spacing:.03em;white-space:nowrap;
+}
+.tag.ok{background:#E3EBDB;color:var(--ok)}
+.tag.warn{background:#F6E4D6;color:var(--warn)}
+.tag.danger{background:#F3DEDA;color:var(--danger)}
+.tag.line{background:transparent;border:1px solid var(--line-2);color:var(--ink-2)}
+
+/* 分段控件 */
+.seg{display:flex;border:1px solid var(--line-2);border-radius:4px;overflow:hidden;background:var(--surface)}
+.seg button{flex:1;min-height:44px;padding:0 10px;font-size:13px;color:var(--ink-2);border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--primary);color:#FFFCF5;font-weight:600}
+
+/* 开关行 */
+.row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .lab{flex:1;min-width:0}
+.row .lab b{display:block;font-weight:600;font-size:14.5px}
+.row .lab span{display:block;font-size:12px;color:var(--ink-3);line-height:1.5;margin-top:1px}
+.sw{width:46px;height:27px;border-radius:14px;background:var(--surface-2);border:1px solid var(--line-2);position:relative;flex:none;transition:background .15s}
+.sw::after{content:'';position:absolute;top:2px;left:2px;width:21px;height:21px;border-radius:50%;background:var(--surface);border:1px solid var(--line-2);transition:transform .15s}
+.sw.on{background:var(--primary);border-color:var(--primary)}
+.sw.on::after{transform:translateX(19px);border-color:var(--primary-soft)}
+
+/* ---------- 食材选择 ---------- */
+.searchwrap{position:relative;margin-bottom:12px}
+.searchwrap input{
+  width:100%;min-height:48px;padding:0 42px 0 36px;
+  border:1px solid var(--line-2);border-radius:4px;background:var(--surface);
+  font-size:16px;outline:none;
+}
+.searchwrap input:focus{border-color:var(--primary-soft)}
+.searchwrap .mg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--ink-3);font-size:14px}
+.searchwrap .clr{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:40px;height:40px;color:var(--ink-3);font-size:15px}
+
+.chipbar{
+  background:var(--surface);border:1px solid var(--line);border-radius:4px;
+  padding:10px;margin-bottom:14px;
+}
+.chipbar .hd{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.chipbar .hd b{font-family:var(--serif);font-size:14px}
+.chipbar .hd .grow{flex:1}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:4px 8px;border-radius:3px;border:1px solid var(--primary);
+  background:#F7ECE0;color:var(--primary);font-size:12.5px;
+}
+.chip b{font-weight:500}
+.chip span{color:var(--primary-soft);font-size:14px;line-height:1}
+
+.catnav{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding-bottom:4px;scrollbar-width:none}
+.catnav::-webkit-scrollbar{display:none}
+.catnav button{
+  flex:none;padding:6px 12px;border:1px solid var(--line-2);border-radius:3px;
+  background:var(--surface);font-size:13px;color:var(--ink-2);white-space:nowrap;
+}
+.catnav button.on{background:var(--primary);border-color:var(--primary);color:#FFFCF5;font-weight:600}
+
+.ings{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:7px}
+.ing{
+  border:1px solid var(--line);border-radius:4px;background:var(--surface);
+  padding:9px 4px 7px;text-align:center;min-height:66px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  position:relative;transition:background .12s;
+}
+.ing em{font-style:normal;font-size:21px;line-height:1;filter:grayscale(.2)}
+.ing b{font-weight:400;font-size:12.5px;letter-spacing:.02em}
+.ing.on{background:#F7ECE0;border-color:var(--primary);color:var(--primary)}
+.ing.on b{font-weight:600}
+.ing.on em{filter:none}
+.ing .badge{position:absolute;top:3px;right:3px;font-size:9.5px;padding:0 4px;border-radius:2px;line-height:14px}
+.ing .badge.warn{background:var(--warn);color:#fff}
+.ing .badge.danger{background:var(--danger);color:#fff}
+.ing .badge.inv{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line-2)}
+
+/* iOS:软键盘弹起时 position:fixed 元素会跟着乱跳,聚焦搜索框期间直接隐藏 */
+body.kb .stickycta{display:none}
+/* 吸底 CTA 是 fixed 的,不占文档流 —— 必须在流里放一块等高占位,
+   否则列表最后一排会被它永久盖住,滚动也露不出来(实测发现的 bug) */
+.ctaspacer{height:70px}
+.stickycta{
+  position:fixed;bottom:calc(var(--tabh) + env(safe-area-inset-bottom));
+  left:50%;transform:translateX(-50%);width:min(var(--frame),100%);
+  z-index:45;background:linear-gradient(to top,var(--bg) 62%,rgba(245,240,232,0));
+  padding:9px calc(14px + env(safe-area-inset-right)) 9px calc(14px + env(safe-area-inset-left));
+}
+
+/* ---------- 菜卡 ---------- */
+.tier{margin-bottom:22px}
+.tier-h{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--line-2)}
+.tier-h h2{font-size:17px}
+.tier-h .n{font-size:11.5px;color:var(--ink-3)}
+.tier-h .why{font-size:11.5px;color:var(--ink-3);margin-left:auto;text-align:right;max-width:48%;line-height:1.4}
+
+.dishes{display:grid;grid-template-columns:1fr;gap:10px}
+.dish{
+  display:flex;gap:0;background:var(--surface);border:1px solid var(--line);border-radius:4px;
+  overflow:hidden;text-align:left;width:100%;align-items:stretch;
+}
+.dish:active{background:#FCF7EC}
+.viz{
+  flex:none;width:78px;display:grid;place-items:center;font-size:33px;
+  border-right:1px solid var(--line);line-height:1;
+}
+.viz[data-cat=stirfry]  {background:linear-gradient(140deg,#F7E5C3,#E9C48F)}
+.viz[data-cat=stew]     {background:linear-gradient(140deg,#EBD2C0,#CE9E7C)}
+.viz[data-cat=soup]     {background:linear-gradient(140deg,#DFE7E4,#B5C8C3)}
+.viz[data-cat=cold]     {background:linear-gradient(140deg,#E6EBD8,#C2D0A6)}
+.viz[data-cat=steam]    {background:linear-gradient(140deg,#F2ECE0,#D8CBB4)}
+.viz[data-cat=staple]   {background:linear-gradient(140deg,#F5EBCF,#E3CE9A)}
+.viz[data-cat=breakfast]{background:linear-gradient(140deg,#F8E6DA,#EBC4A9)}
+.viz[data-cat=bake]     {background:linear-gradient(140deg,#EDD8C2,#C99366)}
+.dish .body{flex:1;min-width:0;padding:9px 11px}
+.dish .t1{display:flex;align-items:baseline;gap:6px}
+.dish .t1 h3{font-size:16px;font-weight:600}
+.dish .t1 .fav{font-size:12px;color:var(--warn)}
+.dish .meta{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;align-items:center}
+.dish .kcal{font-family:var(--serif);font-size:13px;color:var(--primary);font-weight:600}
+.dish .kcalrow{display:block;margin-top:5px;font-family:var(--serif);font-size:13.5px;color:var(--primary);font-weight:600;letter-spacing:.01em}
+.dish .miss{
+  margin-top:6px;font-size:12px;color:var(--warn);
+  border-top:1px dashed var(--line-2);padding-top:5px;line-height:1.5;
+}
+.dish .miss b{font-weight:600}
+.dish .use{margin-top:5px;font-size:11.5px;color:var(--ok)}
+
+/* ---------- 空态 / 引导 ---------- */
+.empty{
+  border:1px dashed var(--line-2);border-radius:4px;background:var(--surface);
+  padding:28px 20px;text-align:center;
+}
+.empty .big{font-size:34px;line-height:1;margin-bottom:10px;filter:grayscale(.3)}
+.empty h3{font-size:16px;margin-bottom:6px}
+.empty p{font-size:13px;color:var(--ink-2);margin:0 auto 14px;max-width:30em;line-height:1.7}
+
+/* ---------- 抽屉 / 弹层 ---------- */
+/* 遮罩与抽屉:只靠 opacity/transform 控制显隐是不够的 ——
+   不激活时必须显式关掉 pointer-events,否则一层不可见的全屏元素
+   会把整页的点击全部吃掉(这个 bug 真实发生过,见 DECISIONS ADR-018) */
+.scrim{position:fixed;inset:0;background:rgba(43,32,21,.42);z-index:60;
+  opacity:0;pointer-events:none;transition:opacity .18s}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{
+  position:fixed;bottom:0;z-index:61;
+  left:50%;width:min(var(--frame),100%);
+  max-height:92vh;max-height:92dvh;background:var(--bg);
+  border-top:1px solid var(--line-2);border-radius:8px 8px 0 0;
+  transform:translate(-50%,101%);transition:transform .24s cubic-bezier(.2,.8,.2,1);
+  display:flex;flex-direction:column;
+  pointer-events:none;
+}
+.sheet.on{transform:translate(-50%,0);pointer-events:auto}
+.sheet-hd{
+  flex:none;padding:10px 14px;border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:10px;background:var(--bg);
+  border-radius:8px 8px 0 0;
+}
+.sheet-hd .grab{position:absolute;left:50%;top:5px;transform:translateX(-50%);width:34px;height:3px;border-radius:2px;background:var(--line-2)}
+.sheet-hd h2{flex:1;min-width:0;font-size:18px}
+/* overscroll-behavior:contain —— 抽屉滚到底时不把整页一起带着滚 */
+.sheet-bd{flex:1;overflow-y:auto;padding:14px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.sheet-ft{flex:none;border-top:1px solid var(--line);display:flex;gap:8px;background:var(--surface);
+  padding:10px calc(14px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(14px + env(safe-area-inset-left))}
+.sheet-ft .btn{flex:1}
+
+/* 菜谱详情 */
+.hero{
+  height:110px;border:1px solid var(--line);border-radius:4px;
+  display:grid;place-items:center;font-size:58px;line-height:1;margin-bottom:12px;
+}
+.statbar{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:4px;background:var(--surface);margin-bottom:14px}
+.statbar div{padding:9px 4px;text-align:center;border-right:1px solid var(--line)}
+.statbar div:last-child{border-right:0}
+.statbar b{display:block;font-family:var(--serif);font-size:16px;color:var(--primary);font-weight:600;line-height:1.2}
+.statbar span{display:block;font-size:10.5px;color:var(--ink-3);letter-spacing:.06em;margin-top:2px}
+
+.iglist{list-style:none;margin:0;padding:0}
+.iglist li{display:flex;align-items:baseline;gap:8px;padding:7px 0;border-bottom:1px dotted var(--line)}
+.iglist li:last-child{border-bottom:0}
+.iglist .nm{flex:1;min-width:0}
+.iglist .qt{font-family:var(--serif);color:var(--ink-2);white-space:nowrap;font-size:14px}
+.iglist li.lack .nm{color:var(--danger)}
+.iglist li.lack .qt{color:var(--danger)}
+.iglist .sub{display:block;font-size:11.5px;color:var(--warn);line-height:1.5;margin-top:1px}
+.grp-h{font-family:var(--serif);font-size:13px;color:var(--ink-3);letter-spacing:.1em;margin:12px 0 2px}
+.grp-h:first-child{margin-top:0}
+
+.steps{list-style:none;margin:0;padding:0;counter-reset:s}
+.steps li{display:flex;gap:11px;padding:11px 0;border-bottom:1px solid var(--line)}
+.steps li:last-child{border-bottom:0}
+.steps .no{
+  flex:none;width:25px;height:25px;border-radius:50%;border:1px solid var(--primary);
+  color:var(--primary);font-family:var(--serif);font-size:13px;display:grid;place-items:center;font-weight:600;
+}
+.steps .tx{flex:1;min-width:0;line-height:1.7}
+.steps .mn{display:inline-block;margin-left:6px;font-size:11px;color:var(--ink-3);white-space:nowrap}
+
+.nutr{display:grid;gap:9px;margin-top:4px}
+.nutr .bar{display:flex;align-items:center;gap:9px;font-size:13px}
+.nutr .bar .k{width:52px;flex:none;color:var(--ink-2)}
+.nutr .bar .tr{flex:1;height:7px;background:var(--surface-2);border-radius:4px;overflow:hidden}
+.nutr .bar .fl{height:100%;border-radius:4px}
+.nutr .bar .v{width:56px;flex:none;text-align:right;font-family:var(--serif);font-size:13.5px}
+.tipbox{border-left:2px solid var(--primary-soft);padding:2px 0 2px 11px;font-size:13px;color:var(--ink-2);line-height:1.7}
+
+/* ---------- 做菜模式 ---------- */
+.cook{
+  position:fixed;top:0;bottom:0;z-index:80;background:var(--bg);
+  left:50%;transform:translateX(-50%);width:min(var(--frame),100%);
+  display:none;flex-direction:column;
+  padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);
+  height:100dvh;
+}
+.cook.on{display:flex}
+.cook-hd{flex:none;padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
+.cook-hd h2{flex:1;min-width:0;font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prog{flex:none;height:3px;background:var(--surface-2)}
+.prog i{display:block;height:100%;background:var(--primary);transition:width .2s}
+.cook-bd{flex:1;overflow-y:auto;display:flex;flex-direction:column;justify-content:center;
+  -webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+  padding:26px calc(22px + env(safe-area-inset-right)) 26px calc(22px + env(safe-area-inset-left))}
+.cook-bd .stepno{font-family:var(--serif);font-size:13px;color:var(--ink-3);letter-spacing:.14em;margin-bottom:14px}
+.cook-bd .steptx{font-size:25px;line-height:1.62;font-weight:500;letter-spacing:.01em}
+/* 原先这里有 @media(min-width:700px) 把步骤字号放大到 31px。
+   加了 480px 画框后,视口 >=700px 只意味着「桌面」,而做菜层被画框限成 480px 宽,
+   31px 在这个宽度里会撑得很难看。已删除 —— 25px 在 320-480px 全区间都成立。 */
+.cook-bd .ings-mini{margin-top:26px;padding-top:14px;border-top:1px solid var(--line);font-size:13.5px;color:var(--ink-2);line-height:1.8}
+.timer{
+  margin-top:22px;border:1px solid var(--line-2);border-radius:4px;background:var(--surface);
+  padding:14px;display:flex;align-items:center;gap:14px;
+}
+.timer .num{font-family:var(--serif);font-size:38px;font-weight:600;color:var(--primary);line-height:1;font-variant-numeric:tabular-nums}
+.timer .grow{flex:1}
+.cook-ft{flex:none;border-top:1px solid var(--line);display:flex;gap:10px;background:var(--surface);
+  padding:12px calc(16px + env(safe-area-inset-right)) 12px calc(16px + env(safe-area-inset-left))}
+.cook-ft .btn{flex:1;min-height:56px;font-size:17px}
+
+/* ---------- 库存 ---------- */
+.invlist{list-style:none;margin:0;padding:0}
+.invlist li{display:flex;align-items:center;gap:8px;padding:11px 0;border-bottom:1px solid var(--line)}
+.invlist .iconbtn,.planrow .iconbtn{width:40px;height:40px;flex:none}
+.invlist li:last-child{border-bottom:0}
+.invlist em{font-style:normal;font-size:22px;flex:none;line-height:1}
+.invlist .nm{flex:1;min-width:0}
+.invlist .nm b{display:block;font-weight:500;font-size:14.5px}
+.invlist .nm span{display:block;font-size:11.5px;color:var(--ink-3)}
+.daybtns{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.daybtns button{padding:7px 12px;border:1px solid var(--line-2);border-radius:3px;background:var(--surface);font-size:13px;min-height:38px}
+.daybtns button:active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+.alertbar{
+  border:1px solid var(--warn);border-left-width:3px;border-radius:4px;
+  background:#FBF1E8;padding:10px 12px;font-size:13px;color:#8A4A20;margin-bottom:14px;line-height:1.6;
+}
+.alertbar b{font-weight:600}
+
+/* ---------- 购物清单 ---------- */
+.shop{list-style:none;margin:0;padding:0}
+.shop li{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px dotted var(--line)}
+.shop li:last-child{border-bottom:0}
+.cb{width:21px;height:21px;flex:none;border:1px solid var(--line-2);border-radius:3px;background:var(--surface);display:grid;place-items:center;font-size:13px;color:transparent}
+.cb.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.shop li.done .nm{text-decoration:line-through;color:var(--ink-3)}
+
+/* ---------- 摆一摆 ---------- */
+.roll{
+  border:1px solid var(--line-2);border-radius:4px;background:var(--surface);
+  padding:20px;text-align:center;margin-bottom:14px;
+}
+.roll .face{font-size:52px;line-height:1;margin-bottom:8px}
+.roll h3{font-size:21px;margin-bottom:4px}
+.roll.spin .face{animation:flip .42s ease}
+@keyframes flip{0%{transform:rotateY(0) scale(1)}50%{transform:rotateY(90deg) scale(.7);opacity:.3}100%{transform:rotateY(0) scale(1)}}
+
+.plan{display:grid;gap:10px}
+.planrow{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--line);border-radius:4px;background:var(--surface)}
+.planrow .slot{flex:none;width:34px;font-family:var(--serif);font-size:12px;color:var(--ink-3);text-align:center;line-height:1.3}
+.planrow em{font-style:normal;font-size:24px;flex:none}
+.planrow .nm{flex:1;min-width:0}
+.planrow .nm b{display:block;font-weight:600;font-size:15px}
+.planrow .nm span{display:block;font-size:11.5px;color:var(--ink-3)}
+
+/* ---------- toast ---------- */
+#toast{
+  position:fixed;left:50%;bottom:calc(var(--tabh) + 34px);transform:translate(-50%,14px);
+  z-index:90;background:#3A2C1D;color:#F8F1E5;padding:9px 16px;border-radius:4px;
+  font-size:13.5px;opacity:0;pointer-events:none;transition:all .2s;max-width:86vw;text-align:center;
+}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* ==========================================================================
+   只做手机端(CLAUDE.md 红线 2 / ADR-019)
+   ——————————————————————————————————————————————————————————————————————
+   这里刻意「没有」桌面断点。桌面浏览器打开时,靠 #app 的 max-width
+   收成一条居中的手机画框,布局与手机完全一致,不是第二套设计。
+
+   画框的实现刻意不用媒体查询:
+     body 用比 --bg 深一档的底色 + #app 用 --bg 本色
+     → 手机上 #app 撑满宽度,深色底永远看不见
+     → 桌面上自然露出画框两侧的深色区
+   边界线用 outline 而不是 border,因为 outline 不占布局宽度,
+   手机上它被画到屏幕外,不会吃掉那 2px。
+   ========================================================================== */
+
+/* 允许保留的两个媒体查询:都是手机内部的小屏适配,不构成第二套布局 */
+@media(max-width:400px){ .statbar b{font-size:15px} }
+@media(max-width:344px){
+  .ings{grid-template-columns:repeat(auto-fill,minmax(80px,1fr))}
+  .tabbar button{font-size:10px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <div class="brand">小付，今天吃什么？<small>WHAT TO COOK TONIGHT</small></div>
+    <div class="grow"></div>
+    <button class="iconbtn" id="btnRoll" title="摆一摆">🎲</button>
+  </header>
+  <div class="tabwrap">
+    <nav class="tabbar" id="tabbar"></nav>
+  </div>
+  <main id="main"></main>
+</div>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet">
+  <div class="sheet-hd"><span class="grab"></span><h2 id="sheetTitle"></h2><button class="iconbtn" id="sheetClose">✕</button></div>
+  <div class="sheet-bd" id="sheetBody"></div>
+  <div class="sheet-ft" id="sheetFoot"></div>
+</div>
+<div class="cook" id="cook"></div>
+<div id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ==========================================================================
+   第 1 层 · 基础数据
+   ========================================================================== */
+
+/* ---- 厨具 ---- */
+var TOOLS = [
+  {id:'wok',       name:'炒锅',      emoji:'🍳', def:true },
+  {id:'pot',       name:'汤锅',      emoji:'🍲', def:true },
+  {id:'steamer',   name:'蒸锅',      emoji:'♨️', def:true },
+  {id:'ricecooker',name:'电饭锅',    emoji:'🍚', def:false},
+  {id:'microwave', name:'微波炉',    emoji:'📻', def:false},
+  {id:'oven',      name:'烤箱',      emoji:'🔥', def:false},
+  {id:'airfryer',  name:'空气炸锅',  emoji:'🌀', def:false},
+  {id:'pressure',  name:'高压锅',    emoji:'⏲️', def:false}
+];
+
+/* ---- 食材分类 ---- */
+var CATS = [
+  {id:'hot',    name:'常用'},
+  {id:'veg',    name:'蔬菜'},
+  {id:'meat',   name:'肉禽蛋'},
+  {id:'fish',   name:'水产'},
+  {id:'soy',    name:'豆制品·奶'},
+  {id:'staple', name:'主食'},
+  {id:'dry',    name:'干货菌菇'},
+  {id:'season', name:'调味'}
+];
+
+/* ---- 菜品分类 ---- */
+var DCATS = {
+  stirfry:'炒菜', stew:'炖焖', soup:'汤羹', cold:'凉菜',
+  steam:'蒸菜', staple:'主食', breakfast:'早餐', bake:'烤·炸锅'
+};
+
+/* ---- 食材库 ----
+   cat: veg|meat|fish|soy|staple|dry|season
+   hot: 是否进「常用」置顶区
+   sd:  库存录入的默认「还能放几天」
+   an:  荤素判定 null|pork|meat|fish   (蛋奶不计入,素食模式为蛋奶素)
+*/
+var ING = [
+/* 蔬菜 */
+{id:'xihongshi',n:'西红柿',cat:'veg',e:'🍅',hot:1,al:['番茄'],sd:7},
+{id:'tudou',n:'土豆',cat:'veg',e:'🥔',hot:1,al:['马铃薯','洋芋'],sd:21},
+{id:'qingjiao',n:'青椒',cat:'veg',e:'🫑',hot:1,al:['菜椒','柿子椒'],sd:7},
+{id:'jianjiao',n:'尖椒',cat:'veg',e:'🌶️',al:['线椒','小米椒','辣椒'],sd:7},
+{id:'huanggua',n:'黄瓜',cat:'veg',e:'🥒',hot:1,al:['青瓜'],sd:7},
+{id:'baicai',n:'白菜',cat:'veg',e:'🥬',hot:1,al:['大白菜'],sd:14},
+{id:'baocai',n:'包菜',cat:'veg',e:'🥬',hot:1,al:['卷心菜','圆白菜','甘蓝'],sd:14},
+{id:'bocai',n:'菠菜',cat:'veg',e:'🥬',hot:1,al:[],sd:3},
+{id:'shengcai',n:'生菜',cat:'veg',e:'🥬',hot:1,al:[],sd:4},
+{id:'youmaicai',n:'油麦菜',cat:'veg',e:'🥬',al:[],sd:3},
+{id:'xiaobaicai',n:'小白菜',cat:'veg',e:'🥬',al:['青菜','上海青'],sd:3},
+{id:'wawacai',n:'娃娃菜',cat:'veg',e:'🥬',al:[],sd:7},
+{id:'jiucai',n:'韭菜',cat:'veg',e:'🌿',hot:1,al:[],sd:3},
+{id:'xilanhua',n:'西兰花',cat:'veg',e:'🥦',hot:1,al:['青花菜'],sd:7},
+{id:'caihua',n:'菜花',cat:'veg',e:'🥦',al:['花菜','白花菜'],sd:7},
+{id:'qincai',n:'芹菜',cat:'veg',e:'🌿',hot:1,al:[],sd:7},
+{id:'huluobo',n:'胡萝卜',cat:'veg',e:'🥕',hot:1,al:['红萝卜'],sd:21},
+{id:'bailuobo',n:'白萝卜',cat:'veg',e:'🥕',al:['萝卜'],sd:21},
+{id:'yangcong',n:'洋葱',cat:'veg',e:'🧅',hot:1,al:['葱头'],sd:30},
+{id:'donggua',n:'冬瓜',cat:'veg',e:'🥒',al:[],sd:14},
+{id:'sigua',n:'丝瓜',cat:'veg',e:'🥒',al:[],sd:5},
+{id:'nangua',n:'南瓜',cat:'veg',e:'🎃',al:[],sd:30},
+{id:'qiezi',n:'茄子',cat:'veg',e:'🍆',hot:1,al:[],sd:5},
+{id:'doujiao',n:'豆角',cat:'veg',e:'🫘',al:['四季豆','芸豆'],sd:5},
+{id:'biandou',n:'荷兰豆',cat:'veg',e:'🫛',al:['扁豆'],sd:5},
+{id:'wandou',n:'豌豆',cat:'veg',e:'🫛',al:['青豆'],sd:7},
+{id:'yumi',n:'玉米',cat:'veg',e:'🌽',hot:1,al:['甜玉米'],sd:7},
+{id:'lian',n:'莲藕',cat:'veg',e:'🪷',al:['藕'],sd:14},
+{id:'shanyao',n:'山药',cat:'veg',e:'🍠',al:[],sd:14},
+{id:'hongshu',n:'红薯',cat:'veg',e:'🍠',al:['地瓜'],sd:21},
+{id:'douya',n:'豆芽',cat:'veg',e:'🌱',al:['绿豆芽','黄豆芽'],sd:3},
+{id:'suanmiao',n:'蒜苗',cat:'veg',e:'🌿',al:['青蒜','蒜黄'],sd:7},
+{id:'dacong',n:'大葱',cat:'veg',e:'🧅',al:['葱白'],sd:14},
+{id:'xiangcai',n:'香菜',cat:'veg',e:'🌿',al:['芫荽'],sd:3},
+{id:'kugua',n:'苦瓜',cat:'veg',e:'🥒',al:['凉瓜'],sd:7},
+{id:'wosun',n:'莴笋',cat:'veg',e:'🌿',al:['青笋'],sd:7},
+{id:'qiukui',n:'秋葵',cat:'veg',e:'🌿',al:[],sd:5},
+{id:'lusun',n:'芦笋',cat:'veg',e:'🌿',al:[],sd:5},
+{id:'xihulu',n:'西葫芦',cat:'veg',e:'🥒',al:[],sd:7},
+/* 肉禽蛋 */
+{id:'jidan',n:'鸡蛋',cat:'meat',e:'🥚',hot:1,al:['蛋','鸡子'],sd:21},
+{id:'zhurou',n:'猪肉',cat:'meat',e:'🥩',hot:1,al:['瘦肉','里脊','猪里脊'],sd:3,an:'pork'},
+{id:'wuhuarou',n:'五花肉',cat:'meat',e:'🥓',hot:1,al:['三层肉','腩肉'],sd:3,an:'pork'},
+{id:'roumo',n:'肉末',cat:'meat',e:'🥩',hot:1,al:['肉馅','猪肉馅','绞肉'],sd:2,an:'pork'},
+{id:'paigu',n:'排骨',cat:'meat',e:'🍖',hot:1,al:['猪排骨','肋排'],sd:3,an:'pork'},
+{id:'jixiong',n:'鸡胸肉',cat:'meat',e:'🍗',hot:1,al:['鸡胸','鸡柳'],sd:3,an:'meat'},
+{id:'jitui',n:'鸡腿',cat:'meat',e:'🍗',hot:1,al:['鸡腿肉','琵琶腿'],sd:3,an:'meat'},
+{id:'jichi',n:'鸡翅',cat:'meat',e:'🍗',hot:1,al:['翅中','鸡翅中'],sd:3,an:'meat'},
+{id:'zhengji',n:'整鸡',cat:'meat',e:'🐔',al:['三黄鸡','土鸡'],sd:3,an:'meat'},
+{id:'niurou',n:'牛肉',cat:'meat',e:'🥩',hot:1,al:['牛里脊','牛柳'],sd:3,an:'meat'},
+{id:'niunan',n:'牛腩',cat:'meat',e:'🥩',al:['牛腩肉'],sd:3,an:'meat'},
+{id:'yangrou',n:'羊肉',cat:'meat',e:'🍖',al:['羊肉片','羊腿肉'],sd:3,an:'meat'},
+{id:'xiangchang',n:'香肠',cat:'meat',e:'🌭',al:['腊肠','火腿肠'],sd:30,an:'pork'},
+{id:'peigen',n:'培根',cat:'meat',e:'🥓',al:[],sd:14,an:'pork'},
+/* 水产 */
+{id:'xia',n:'虾',cat:'fish',e:'🦐',hot:1,al:['虾仁','大虾','基围虾'],sd:2,an:'fish'},
+{id:'luyu',n:'鲈鱼',cat:'fish',e:'🐟',al:['海鲈鱼'],sd:2,an:'fish'},
+{id:'caoyu',n:'草鱼',cat:'fish',e:'🐟',al:['鲤鱼','鱼'],sd:2,an:'fish'},
+{id:'daiyu',n:'带鱼',cat:'fish',e:'🐟',al:[],sd:2,an:'fish'},
+{id:'geli',n:'蛤蜊',cat:'fish',e:'🦪',al:['花甲','蚬子'],sd:2,an:'fish'},
+{id:'youyu',n:'鱿鱼',cat:'fish',e:'🦑',al:[],sd:2,an:'fish'},
+{id:'xiapi',n:'虾皮',cat:'fish',e:'🦐',al:['虾米'],sd:90,an:'fish'},
+/* 豆制品·奶 */
+{id:'doufu',n:'豆腐',cat:'soy',e:'🍲',hot:1,al:['嫩豆腐','老豆腐','北豆腐'],sd:3},
+{id:'xianggan',n:'香干',cat:'soy',e:'🟫',al:['豆腐干','五香豆干'],sd:7},
+{id:'gandoufu',n:'干豆腐',cat:'soy',e:'📄',al:['豆腐皮','千张','百页'],sd:5},
+{id:'fuzhu',n:'腐竹',cat:'soy',e:'🟡',al:[],sd:180},
+{id:'pidan',n:'皮蛋',cat:'soy',e:'🥚',al:['松花蛋'],sd:60},
+{id:'xiandan',n:'咸鸭蛋',cat:'soy',e:'🥚',al:['咸蛋'],sd:60},
+{id:'niunai',n:'牛奶',cat:'soy',e:'🥛',hot:1,al:['纯牛奶'],sd:7},
+{id:'suannai',n:'酸奶',cat:'soy',e:'🥛',al:[],sd:14},
+/* 主食 */
+{id:'mifan',n:'米饭',cat:'staple',e:'🍚',hot:1,al:['大米','剩饭'],sd:3},
+{id:'miantiao',n:'面条',cat:'staple',e:'🍜',hot:1,al:['挂面','鲜面'],sd:180},
+{id:'mianfen',n:'面粉',cat:'staple',e:'🌾',al:[],sd:180},
+{id:'fensi',n:'粉丝',cat:'staple',e:'🍜',al:['龙口粉丝','红薯粉'],sd:365},
+{id:'jiaozipi',n:'饺子皮',cat:'staple',e:'⚪',al:['馄饨皮','云吞皮'],sd:5},
+{id:'tusi',n:'吐司',cat:'staple',e:'🍞',hot:1,al:['面包','切片面包'],sd:5},
+{id:'xiaomi',n:'小米',cat:'staple',e:'🌾',al:[],sd:365},
+{id:'yanmai',n:'燕麦',cat:'staple',e:'🌾',al:['燕麦片'],sd:365},
+{id:'niangao',n:'年糕',cat:'staple',e:'🍥',al:['年糕片'],sd:14},
+/* 干货菌菇 */
+{id:'xianggu',n:'香菇',cat:'dry',e:'🍄',hot:1,al:['冬菇','干香菇'],sd:7},
+{id:'jinzhengu',n:'金针菇',cat:'dry',e:'🍄',al:[],sd:5},
+{id:'pinggu',n:'平菇',cat:'dry',e:'🍄',al:[],sd:5},
+{id:'muer',n:'木耳',cat:'dry',e:'🖤',hot:1,al:['黑木耳'],sd:365},
+{id:'yiner',n:'银耳',cat:'dry',e:'🤍',al:['白木耳'],sd:365},
+{id:'zicai',n:'紫菜',cat:'dry',e:'🌿',al:['海苔'],sd:180},
+{id:'haidai',n:'海带',cat:'dry',e:'🌿',al:['海带丝','裙带菜'],sd:30},
+{id:'huasheng',n:'花生',cat:'dry',e:'🥜',al:['花生米'],sd:180},
+{id:'hongzao',n:'红枣',cat:'dry',e:'🔴',al:['大枣'],sd:180},
+{id:'lianzi',n:'莲子',cat:'dry',e:'⚪',al:[],sd:180},
+{id:'gouqi',n:'枸杞',cat:'dry',e:'🔴',al:[],sd:180},
+{id:'huangdou',n:'黄豆',cat:'dry',e:'🫘',al:['大豆'],sd:365},
+{id:'suancai',n:'酸菜',cat:'dry',e:'🥬',al:['泡菜','东北酸菜'],sd:60},
+/* 调味 —— 基础包(默认视为家里都有) */
+{id:'yan',n:'盐',cat:'season',e:'🧂',pk:1},
+{id:'you',n:'食用油',cat:'season',e:'🫗',pk:1},
+{id:'tang',n:'糖',cat:'season',e:'🍬',pk:1,al:['白糖']},
+{id:'shengchou',n:'生抽',cat:'season',e:'🍶',pk:1,al:['酱油']},
+{id:'laochou',n:'老抽',cat:'season',e:'🍶',pk:1},
+{id:'cu',n:'醋',cat:'season',e:'🍶',pk:1,al:['香醋','陈醋','白醋']},
+{id:'liaojiu',n:'料酒',cat:'season',e:'🍶',pk:1,al:['黄酒']},
+{id:'cong',n:'葱',cat:'season',e:'🌿',pk:1,al:['小葱','葱花']},
+{id:'jiang',n:'姜',cat:'season',e:'🫚',pk:1,al:['生姜']},
+{id:'suan',n:'蒜',cat:'season',e:'🧄',pk:1,al:['大蒜','蒜瓣']},
+{id:'dianfen',n:'淀粉',cat:'season',e:'🥣',pk:1,al:['生粉','玉米淀粉']},
+{id:'hujiaofen',n:'胡椒粉',cat:'season',e:'⚫',pk:1,al:['白胡椒']},
+{id:'haoyou',n:'蚝油',cat:'season',e:'🍯',pk:1},
+{id:'jijing',n:'鸡精',cat:'season',e:'🥫',pk:1,al:['味精']},
+{id:'xiangyou',n:'香油',cat:'season',e:'🫗',pk:1,al:['芝麻油']},
+{id:'ganlajiao',n:'干辣椒',cat:'season',e:'🌶️',pk:1},
+{id:'bingtang',n:'冰糖',cat:'season',e:'🍬',pk:1},
+{id:'bajiao',n:'八角',cat:'season',e:'⭐',pk:1,al:['大料']},
+{id:'huajiao',n:'花椒',cat:'season',e:'⚫',pk:1},
+{id:'baizhima',n:'白芝麻',cat:'season',e:'⚪',pk:1,al:['芝麻']},
+/* 调味 —— 非基础包(缺了会提示,并给替代方案) */
+{id:'doubanjiang',n:'豆瓣酱',cat:'season',e:'🥫',al:['郫县豆瓣']},
+{id:'zhimajiang',n:'芝麻酱',cat:'season',e:'🥫',al:['麻酱']},
+{id:'fanqiejiang',n:'番茄酱',cat:'season',e:'🥫',al:[]},
+{id:'kaleifen',n:'咖喱粉',cat:'season',e:'🍛',al:['咖喱块']},
+{id:'heijiao',n:'黑胡椒',cat:'season',e:'⚫',pk:1,al:[]},
+{id:'ziran',n:'孜然',cat:'season',e:'🟤',al:[]},
+{id:'wuxiangfen',n:'五香粉',cat:'season',e:'🟤',al:[]},
+{id:'lajiaomian',n:'辣椒面',cat:'season',e:'🌶️',al:['辣椒粉']},
+{id:'guipi',n:'桂皮',cat:'season',e:'🪵',al:['肉桂']},
+{id:'xiangye',n:'香叶',cat:'season',e:'🍃',al:[]},
+{id:'fengmi',n:'蜂蜜',cat:'season',e:'🍯',al:[]},
+{id:'kele',n:'可乐',cat:'season',e:'🥤',al:[]}
+];
+
+/* 索引 */
+var IMAP={}, i;
+for(i=0;i<ING.length;i++) IMAP[ING[i].id]=ING[i];
+
+/* 调味基础包 */
+var PACK={};
+for(i=0;i<ING.length;i++) if(ING[i].pk) PACK[ING[i].id]=1;
+
+/* 常见替代方案(全局兜底,菜谱内的 subs 优先) */
+var SUBS={
+  laochou:'可用生抽 + 少量糖代替上色',
+  haoyou:'可用生抽 + 半勺糖代替',
+  liaojiu:'可用清水 + 几片姜去腥',
+  jijing:'可省略,或多加少许盐',
+  bingtang:'可用等量白糖',
+  xiangyou:'可省略,或用少量花生油',
+  doubanjiang:'可用辣椒酱 + 一点黄豆酱代替',
+  zhimajiang:'可用花生酱代替',
+  fanqiejiang:'可用番茄丁炒出汁 + 少量糖代替',
+  kaleifen:'可用咖喱块,或省略改做红烧味',
+  heijiao:'可用普通胡椒粉',
+  ziran:'可省略,风味略淡',
+  wuxiangfen:'可用八角 + 桂皮各一小块代替',
+  lajiaomian:'可用干辣椒剪碎代替',
+  guipi:'可省略',
+  xiangye:'可省略',
+  fengmi:'可用等量白糖 + 少许水',
+  kele:'可用清水 + 2 勺糖代替(色泽略浅)',
+  jiaomu:'不发面直接做,口感偏硬一些',
+  xiapi:'可省略,或用少量虾米',
+  gouqi:'可省略',
+  hongzao:'可省略'
+};
+
+/* ==========================================================================
+   第 2 层 · 菜谱库
+   qty 以 3 人份为基准;nutr 为「每份」估算值
+   ========================================================================== */
+var RECIPES = [
+/* ---------- 炒菜 ---------- */
+{id:'fanqiechaodan',n:'西红柿炒蛋',e:'🍅',cat:'stirfry',cu:'家常',t:15,d:1,sp:0,tl:['wok'],tg:['快手','下饭','新手友好','孩子爱吃'],
+ m:[{i:'xihongshi',q:3,u:'个'},{i:'jidan',q:4,u:'个'}],s:[{i:'cong',q:1,u:'根'}],
+ se:['yan','you','tang','shengchou'],
+ nu:{k:190,p:11,f:13,c:7},
+ st:[{t:'西红柿顶部划十字,开水烫 30 秒后剥皮,切滚刀块。带皮炒的话皮会卷起来剌嘴。',m:5},
+     {t:'鸡蛋打散,加一小勺清水和少许盐搅匀——加水是蛋嫩的关键。',m:2},
+     {t:'热锅多油,油温七成热倒入蛋液,等边缘鼓起再翻炒成大块,盛出。别炒太碎。',m:3},
+     {t:'补一点油,下西红柿中火炒 4 分钟,炒到软烂出汁、颜色变深,这一步别急。',m:4},
+     {t:'加半勺糖、少许盐和几滴生抽,倒回鸡蛋,翻炒 30 秒让蛋吸汁,撒葱花出锅。',m:2}],
+ tp:'半勺糖不是为了甜,是为了压掉西红柿的酸涩、把鲜味提出来。西红柿必须炒出沙,汤汁浓了鸡蛋才挂得上味。'},
+
+{id:'jiucaichaodan',n:'韭菜炒蛋',e:'🌿',cat:'stirfry',cu:'家常',t:12,d:1,sp:0,tl:['wok'],tg:['快手','下饭','新手友好'],
+ m:[{i:'jiucai',q:300,u:'g'},{i:'jidan',q:4,u:'个'}],s:[],
+ se:['yan','you','shengchou','jijing'],
+ nu:{k:177,p:12,f:13,c:3},
+ st:[{t:'韭菜洗净沥干,切 4cm 段,根部和叶子分开放。',m:4},
+     {t:'鸡蛋打散加少许盐,热油炒成大块盛出。',m:3},
+     {t:'补油大火下韭菜根部炒 40 秒,再下叶子炒 30 秒。',m:2},
+     {t:'倒回鸡蛋,加盐和几滴生抽,大火翻 20 秒立刻出锅。',m:2}],
+ tp:'韭菜全程不超过 90 秒。炒过头会出水发黑,香味全跑掉。根部先下、叶子后下,熟度才一致。'},
+
+{id:'yangcongchaodan',n:'洋葱炒蛋',e:'🧅',cat:'stirfry',cu:'家常',t:14,d:1,sp:0,tl:['wok'],tg:['快手','下饭','新手友好'],
+ m:[{i:'yangcong',q:1,u:'个'},{i:'jidan',q:4,u:'个'}],s:[],
+ se:['yan','you','shengchou','hujiaofen'],
+ nu:{k:180,p:11,f:12,c:8},
+ st:[{t:'洋葱切丝,鸡蛋打散加少许盐。',m:4},
+     {t:'热油炒鸡蛋成块盛出。',m:3},
+     {t:'补油下洋葱,中火炒 4 分钟至变软透明、边缘微焦发甜。',m:4},
+     {t:'倒回鸡蛋,加盐、生抽、胡椒粉翻匀出锅。',m:2}],
+ tp:'洋葱要炒到透明才甜,只炒两分钟是生辣味。中火慢炒比大火快炒好吃得多。'},
+
+{id:'kuguachaodan',n:'苦瓜炒蛋',e:'🥒',cat:'stirfry',cu:'家常',t:16,d:1,sp:0,tl:['wok'],tg:['快手','低卡','减脂','夏天'],
+ m:[{i:'kugua',q:1,u:'根'},{i:'jidan',q:4,u:'个'}],s:[],
+ se:['yan','you','shengchou','tang'],
+ nu:{k:170,p:11,f:12,c:5},
+ st:[{t:'苦瓜对半剖开,用勺子把白色的瓤和籽彻底刮净——苦味主要在瓤上。切薄片。',m:5},
+     {t:'苦瓜片加一勺盐抓匀腌 5 分钟,挤掉苦水,再用清水冲一遍。这步能去掉七成苦味。',m:6},
+     {t:'鸡蛋打散加盐,热油炒成块盛出。',m:3},
+     {t:'大火下苦瓜炒 2 分钟至变翠绿,加盐和半勺糖。',m:2},
+     {t:'倒回鸡蛋翻匀,滴几滴生抽出锅。',m:1}],
+ tp:'刮瓤 + 盐腌挤水,是苦瓜能不能被家人接受的分水岭。加半勺糖不是为甜,是为了平衡残留的苦。'},
+
+{id:'huangguachaodan',n:'黄瓜炒蛋',e:'🥒',cat:'stirfry',cu:'家常',t:12,d:1,sp:0,tl:['wok'],tg:['快手','低卡','减脂','新手友好'],
+ m:[{i:'huanggua',q:2,u:'根'},{i:'jidan',q:4,u:'个'}],s:[{i:'muer',q:8,u:'g'}],
+ se:['yan','you','shengchou','suan'],
+ nu:{k:163,p:11,f:12,c:4},
+ st:[{t:'黄瓜斜切薄片,木耳泡发撕小朵(可省略)。',m:4},
+     {t:'鸡蛋打散加盐,热油炒成大块盛出。',m:3},
+     {t:'大火下蒜末爆香,下黄瓜片炒 90 秒至边缘变透明。',m:2},
+     {t:'倒回鸡蛋,加盐和生抽,翻 20 秒出锅。',m:2}],
+ tp:'黄瓜炒久了会大量出水变软塌。90 秒、大火、不加盖,保持脆感。'},
+
+{id:'xihuluchaodan',n:'西葫芦炒蛋',e:'🥒',cat:'stirfry',cu:'家常',t:13,d:1,sp:0,tl:['wok'],tg:['快手','低卡','减脂','新手友好'],
+ m:[{i:'xihulu',q:1,u:'个'},{i:'jidan',q:4,u:'个'}],s:[{i:'huluobo',q:40,u:'g'}],
+ se:['yan','you','shengchou','suan'],
+ nu:{k:167,p:11,f:12,c:5},
+ st:[{t:'西葫芦切半圆薄片,胡萝卜切薄片。',m:4},
+     {t:'鸡蛋打散加盐,热油炒成块盛出。',m:3},
+     {t:'下蒜末爆香,加西葫芦和胡萝卜大火炒 2 分半至微软。',m:3},
+     {t:'倒回鸡蛋,加盐生抽翻匀出锅。',m:2}],
+ tp:'西葫芦出水多,切完别撒盐提前腌。大火快炒,盐最后放。'},
+
+{id:'qingjiaorousi',n:'青椒肉丝',e:'🫑',cat:'stirfry',cu:'家常',t:22,d:2,sp:1,tl:['wok'],tg:['下饭','家常','高蛋白'],
+ m:[{i:'qingjiao',q:3,u:'个'},{i:'zhurou',q:250,u:'g'}],s:[{i:'cong',q:1,u:'根'}],
+ se:['shengchou','laochou','dianfen','liaojiu','yan','you','tang','suan','jiang','hujiaofen'],
+ nu:{k:243,p:18,f:16,c:6},
+ st:[{t:'猪肉顺纹切丝(顺纹切丝、横纹切片,这样肉丝炒了不断)。青椒切丝。',m:6},
+     {t:'上浆:肉丝加生抽 1 勺、料酒 1 勺、胡椒粉、1 勺淀粉抓匀,最后拌半勺油封住,腌 10 分钟。',m:11},
+     {t:'调碗汁:生抽 1 勺、老抽几滴、糖半勺、盐、半勺淀粉、2 勺清水搅匀备用。',m:2},
+     {t:'锅烧到冒烟下油,油热后下肉丝快速划散,20 秒变白立刻盛出。',m:2},
+     {t:'补油下蒜末姜末爆香,下青椒丝大火炒 90 秒至断生。',m:2},
+     {t:'倒回肉丝,淋入碗汁,大火翻炒 30 秒收汁,撒葱花出锅。',m:2}],
+ tp:'"上浆 + 拌油 + 滑炒 20 秒"是所有肉丝肉片嫩的通用公式。碗汁提前调好,下锅后没时间再调味。'},
+
+{id:'yuxiangrousi',n:'鱼香肉丝',e:'🥩',cat:'stirfry',cu:'川菜',t:28,d:3,sp:2,tl:['wok'],tg:['下饭','宴客','经典','重口'],
+ m:[{i:'zhurou',q:250,u:'g'},{i:'muer',q:15,u:'g'},{i:'huluobo',q:100,u:'g'}],s:[{i:'qingjiao',q:1,u:'个'},{i:'cong',q:2,u:'根'}],
+ se:['doubanjiang','shengchou','cu','tang','dianfen','liaojiu','you','suan','jiang','yan'],
+ nu:{k:277,p:18,f:17,c:11},
+ st:[{t:'木耳泡发切丝,胡萝卜、青椒切丝,猪肉顺纹切丝。',m:8},
+     {t:'肉丝上浆:生抽、料酒、1 勺淀粉抓匀,拌半勺油,腌 10 分钟。',m:11},
+     {t:'调鱼香汁(核心):生抽 2 勺、醋 2 勺、糖 2 勺、淀粉 1 勺、清水 3 勺搅匀。糖和醋等量是"鱼香"的定义。',m:3},
+     {t:'热油滑炒肉丝 20 秒变白盛出。',m:2},
+     {t:'补油,小火下 1 勺豆瓣酱炒 40 秒炒出红油,再下姜蒜末炒香。',m:2},
+     {t:'大火下木耳、胡萝卜、青椒丝炒 2 分钟。',m:2},
+     {t:'倒回肉丝,淋入鱼香汁,大火翻炒 40 秒收成挂汁状,撒葱花。',m:2}],
+ tp:'鱼香味的公式是糖:醋 = 1:1,再加豆瓣酱的咸鲜和姜蒜的辛香。糖醋比例错了就不是鱼香。豆瓣酱一定小火炒出红油。'},
+
+{id:'huiguorou',n:'回锅肉',e:'🥓',cat:'stirfry',cu:'川菜',t:45,d:2,sp:2,tl:['wok','pot'],tg:['下饭','经典','重口'],
+ m:[{i:'wuhuarou',q:400,u:'g'},{i:'baocai',q:250,u:'g'}],s:[{i:'suanmiao',q:80,u:'g'},{i:'qingjiao',q:1,u:'个'}],
+ se:['doubanjiang','shengchou','laochou','tang','liaojiu','jiang','you','huajiao'],
+ nu:{k:467,p:17,f:43,c:5},
+ st:[{t:'五花肉整块冷水下锅,加姜片、料酒、几粒花椒,煮 20 分钟至筷子能插透。',m:23},
+     {t:'捞出放凉(可冷藏 15 分钟),切成 2mm 的薄片。凉透才切得薄。',m:6},
+     {t:'包菜手撕成块,蒜苗切段,青椒切块。',m:4},
+     {t:'锅中不放油,下肉片中火煎 3 分钟,煎到肉片卷曲、边缘焦黄、油被逼出来。这就叫"灯盏窝"。',m:4},
+     {t:'把肉推到锅边,用逼出的猪油小火下 1 勺豆瓣酱炒 40 秒出红油。',m:2},
+     {t:'下包菜和青椒大火炒 2 分钟,加生抽、少许老抽、半勺糖。',m:3},
+     {t:'最后下蒜苗炒 40 秒,翻匀出锅。',m:2}],
+ tp:'先煮后煎是回锅肉的定义。不放油干煎、把肉自身的油逼出来炒菜,是这道菜香而不腻的原因。'},
+
+{id:'suanmiaochaorou',n:'蒜苗炒肉',e:'🌿',cat:'stirfry',cu:'家常',t:20,d:1,sp:1,tl:['wok'],tg:['下饭','快手','家常'],
+ m:[{i:'suanmiao',q:250,u:'g'},{i:'zhurou',q:200,u:'g'}],s:[{i:'jianjiao',q:1,u:'个'}],
+ se:['shengchou','dianfen','liaojiu','yan','you','tang','jiang','hujiaofen'],
+ nu:{k:227,p:15,f:16,c:6},
+ st:[{t:'猪肉切片上浆:生抽、料酒、淀粉抓匀,拌油腌 10 分钟。蒜苗切斜段,茎叶分开。',m:12},
+     {t:'热油滑炒肉片 30 秒变白盛出。',m:2},
+     {t:'补油下姜末和尖椒圈爆香,下蒜苗茎部炒 90 秒。',m:2},
+     {t:'下蒜苗叶炒 30 秒,倒回肉片,加生抽、盐、少许糖翻匀出锅。',m:3}],
+ tp:'蒜苗茎和叶熟得不一样快,分开下锅。整根同时下,茎还生的时候叶已经黄了。'},
+
+{id:'qincaichaorou',n:'芹菜炒肉',e:'🌿',cat:'stirfry',cu:'家常',t:20,d:1,sp:0,tl:['wok'],tg:['下饭','快手','家常','低卡'],
+ m:[{i:'qincai',q:300,u:'g'},{i:'zhurou',q:200,u:'g'}],s:[{i:'huluobo',q:50,u:'g'}],
+ se:['shengchou','dianfen','liaojiu','yan','you','suan','tang','hujiaofen'],
+ nu:{k:207,p:15,f:14,c:5},
+ st:[{t:'芹菜撕掉老筋,斜切段。撕筋这步别省,不然嚼不烂。',m:6},
+     {t:'猪肉切丝上浆腌 10 分钟。',m:11},
+     {t:'热油滑炒肉丝 20 秒盛出。',m:2},
+     {t:'下蒜末爆香,大火下芹菜和胡萝卜炒 2 分钟至断生但仍脆。',m:3},
+     {t:'倒回肉丝,加生抽、盐、少许糖,翻炒 30 秒出锅。',m:2}],
+ tp:'芹菜不要焯水,直接大火干炒才有清香和脆感。焯过水就软了,香味也淡了。'},
+
+{id:'muerchaorou',n:'木耳炒肉',e:'🖤',cat:'stirfry',cu:'家常',t:35,d:1,sp:0,tl:['wok'],tg:['下饭','家常','低卡'],
+ m:[{i:'muer',q:25,u:'g'},{i:'zhurou',q:200,u:'g'}],s:[{i:'qingjiao',q:1,u:'个'},{i:'huluobo',q:50,u:'g'}],
+ se:['shengchou','haoyou','dianfen','liaojiu','yan','you','suan','jiang','tang'],
+ nu:{k:200,p:15,f:13,c:6},
+ st:[{t:'木耳温水泡发 20 分钟,洗净撕小朵。彻底沥干,不然下锅会炸油。',m:22},
+     {t:'猪肉切片上浆腌 10 分钟,青椒胡萝卜切片。',m:11},
+     {t:'热油滑炒肉片 30 秒盛出。',m:2},
+     {t:'下姜蒜爆香,大火下木耳炒 90 秒(会有轻微爆响,正常)。',m:2},
+     {t:'下青椒胡萝卜炒 1 分钟,倒回肉片,加生抽、蚝油、盐、少许糖翻匀出锅。',m:3}],
+ tp:'木耳一定要沥到不滴水再下锅,带水下热油会剧烈爆溅。泡发别超过 4 小时。'},
+
+{id:'doujiaochaorou',n:'豆角炒肉',e:'🫘',cat:'stirfry',cu:'家常',t:25,d:2,sp:1,tl:['wok'],tg:['下饭','家常'],
+ m:[{i:'doujiao',q:350,u:'g'},{i:'zhurou',q:200,u:'g'}],s:[{i:'suan',q:5,u:'瓣'}],
+ se:['shengchou','laochou','dianfen','liaojiu','yan','you','tang','ganlajiao','hujiaofen'],
+ nu:{k:240,p:16,f:15,c:9},
+ st:[{t:'豆角掰去两头和筋,折成 5cm 段。猪肉切丝上浆腌 10 分钟。',m:12},
+     {t:'豆角必须完全熟透才能吃。开水加少许盐焯 5 分钟,或下油锅中火煸 6 分钟至表皮起皱变软。',m:7},
+     {t:'热油滑炒肉丝 20 秒盛出。',m:2},
+     {t:'下蒜末和干辣椒爆香,倒入豆角炒 2 分钟。',m:3},
+     {t:'倒回肉丝,加生抽、少许老抽、盐、半勺糖,加两勺水焖 1 分钟收汁出锅。',m:3}],
+ tp:'豆角没熟透会中毒,这不是口感问题。焯 5 分钟或煸到表皮起皱发软,颜色从鲜绿变成暗绿才算熟。'},
+
+{id:'roumoqiezi',n:'肉末茄子',e:'🍆',cat:'stirfry',cu:'家常',t:28,d:2,sp:1,tl:['wok'],tg:['下饭','经典','家常'],
+ m:[{i:'qiezi',q:500,u:'g'},{i:'roumo',q:200,u:'g'}],s:[{i:'jianjiao',q:1,u:'个'},{i:'cong',q:2,u:'根'}],
+ se:['shengchou','laochou','haoyou','doubanjiang','tang','dianfen','you','suan','jiang','yan'],
+ nu:{k:310,p:14,f:23,c:11},
+ st:[{t:'茄子切长条,泡在淡盐水里 5 分钟——盐水能让茄子少吸油,还防止氧化变黑。捞出挤干。',m:7},
+     {t:'热锅多油,下茄条中火煎 5 分钟至表面微焦软塌,盛出。',m:6},
+     {t:'锅里留底油,下肉末炒散炒出油,加姜蒜末和 1 勺豆瓣酱小火炒 40 秒。',m:4},
+     {t:'加生抽 2 勺、老抽半勺、蚝油 1 勺、糖半勺、半碗水烧开。',m:2},
+     {t:'倒回茄子,中火焖 3 分钟让茄子吸满汤汁。',m:4},
+     {t:'淋淀粉水勾薄芡,撒葱花和尖椒圈出锅。',m:2}],
+ tp:'盐水泡茄子是省油的关键——不泡的茄子能吸掉半碗油。焖 3 分钟让茄子回吸汤汁,比一直炒好吃得多。'},
+
+{id:'gulaorou',n:'咕咾肉',e:'🍍',cat:'stirfry',cu:'粤菜',t:40,d:3,sp:0,tl:['wok'],tg:['宴客','孩子爱吃','经典'],
+ m:[{i:'wuhuarou',q:400,u:'g'},{i:'qingjiao',q:1,u:'个'},{i:'yangcong',q:0.5,u:'个'}],s:[{i:'jidan',q:1,u:'个'},{i:'huluobo',q:50,u:'g'}],
+ se:['fanqiejiang','cu','tang','dianfen','shengchou','liaojiu','yan','you','hujiaofen'],
+ nu:{k:520,p:20,f:38,c:24},
+ st:[{t:'五花肉切 2.5cm 方块,加生抽、料酒、盐、胡椒粉抓匀腌 15 分钟。',m:17},
+     {t:'肉块加蛋液抓匀,再裹一层厚淀粉,每块都按紧压实。',m:5},
+     {t:'油温六成热(筷子插进去冒小泡)下肉块,中火炸 4 分钟至定型微黄,捞出。',m:6},
+     {t:'油温升到八成热,回锅复炸 40 秒至金黄酥脆,捞出沥油。复炸是酥脆不回软的关键。',m:3},
+     {t:'调糖醋汁:番茄酱 3 勺、醋 2 勺、糖 2.5 勺、清水 3 勺、淀粉半勺搅匀。',m:3},
+     {t:'锅留少许油,下洋葱青椒胡萝卜块炒 90 秒,倒入糖醋汁烧到冒泡变浓。',m:3},
+     {t:'倒入炸好的肉块,快速翻匀让每块挂上汁,立刻出锅。',m:2}],
+ tp:'两次油炸不能省:第一次定型熟透,第二次高温脱水上色。挂汁要在最后 20 秒完成,裹久了外壳就软了。'},
+
+{id:'gongbaojiding',n:'宫保鸡丁',e:'🥜',cat:'stirfry',cu:'川菜',t:30,d:3,sp:2,tl:['wok'],tg:['下饭','经典','宴客','重口'],
+ m:[{i:'jixiong',q:350,u:'g'},{i:'huasheng',q:60,u:'g'}],s:[{i:'huanggua',q:1,u:'根'},{i:'cong',q:3,u:'根'}],
+ se:['ganlajiao','huajiao','shengchou','laochou','cu','tang','dianfen','liaojiu','you','suan','jiang','yan'],
+ nu:{k:340,p:27,f:20,c:12},
+ st:[{t:'鸡胸切 1.5cm 丁,加生抽、料酒、1 勺淀粉、少许盐抓匀,拌半勺油腌 15 分钟。',m:17},
+     {t:'花生米冷油小火炸 5 分钟至酥,捞出晾凉。黄瓜切丁,葱白切段。',m:7},
+     {t:'调宫保汁:生抽 1.5 勺、老抽半勺、醋 2 勺、糖 2 勺、淀粉半勺、清水 3 勺。糖醋要比鱼香略甜。',m:3},
+     {t:'热油下鸡丁大火炒 90 秒至表面变白微焦,盛出。',m:3},
+     {t:'锅留油,小火下干辣椒段和花椒炒 30 秒至辣椒变深红出香(别炒黑)。',m:1},
+     {t:'下姜蒜末和葱白炒香,倒回鸡丁,淋入宫保汁大火翻炒 40 秒收汁。',m:2},
+     {t:'关火后拌入花生米和黄瓜丁,立刻出锅。',m:1}],
+ tp:'花生米一定最后关火才放,提前下锅会立刻吸汁变软,宫保鸡丁就没有脆花生了。干辣椒炒黑就苦,变深红立刻下一步。'},
+
+{id:'laiziji',n:'辣子鸡',e:'🌶️',cat:'stirfry',cu:'川菜',t:45,d:3,sp:3,tl:['wok'],tg:['下酒','重口','宴客'],
+ m:[{i:'jitui',q:500,u:'g'},{i:'ganlajiao',q:30,u:'g'}],s:[{i:'baizhima',q:10,u:'g'},{i:'cong',q:2,u:'根'}],
+ se:['huajiao','shengchou','liaojiu','yan','dianfen','you','suan','jiang','tang','hujiaofen'],
+ nu:{k:430,p:30,f:31,c:6},
+ st:[{t:'鸡腿去骨切 2cm 小块,加生抽、料酒、盐、胡椒粉、姜末抓匀腌 20 分钟。',m:23},
+     {t:'腌好的鸡块拌一层薄淀粉。干辣椒剪段去籽(去籽能减辣留香)。',m:5},
+     {t:'油温七成热下鸡块,中火炸 5 分钟至表面金黄,捞出。',m:7},
+     {t:'油温升高复炸 1 分钟至外壳酥硬、水分炸干,捞出沥油。',m:2},
+     {t:'锅留 2 勺油,小火下花椒和干辣椒段慢炒 90 秒至辣椒微微发暗、香气窜出来。',m:3},
+     {t:'下姜蒜末炒香,倒入鸡块,加少许盐和糖,大火翻炒 90 秒让每块都裹上椒香。',m:3},
+     {t:'撒白芝麻和葱段出锅。',m:1}],
+ tp:'辣子鸡吃的是"干香"不是汁。鸡块必须炸到水分很少、外壳发硬,炒的时候不加一滴水,才有那种越嚼越香的口感。'},
+
+{id:'heijiaoniuliu',n:'黑椒牛柳',e:'🥩',cat:'stirfry',cu:'西式',t:30,d:2,sp:1,tl:['wok'],tg:['高蛋白','宴客','增肌','低碳水'],
+ m:[{i:'niurou',q:350,u:'g'},{i:'yangcong',q:1,u:'个'},{i:'qingjiao',q:1,u:'个'}],s:[{i:'huluobo',q:50,u:'g'}],
+ se:['heijiao','shengchou','haoyou','dianfen','liaojiu','tang','you','yan','suan'],
+ nu:{k:307,p:26,f:19,c:8},
+ st:[{t:'牛肉横纹切条(逆着纹路切才嫩)。加生抽 1 勺、蚝油 1 勺、料酒、1 勺淀粉、大量现磨黑胡椒抓匀。',m:8},
+     {t:'拌入半勺油封住水分,腌 15 分钟。',m:16},
+     {t:'洋葱和青椒切条,胡萝卜切片。',m:4},
+     {t:'锅烧到冒烟,下油,牛肉条平铺下锅,不要马上翻动,煎 40 秒再翻,总共 90 秒盛出。',m:3},
+     {t:'补油下洋葱炒 2 分钟至微软,下青椒胡萝卜炒 1 分钟。',m:3},
+     {t:'倒回牛肉,加蚝油、生抽、半勺糖和大量黑胡椒,大火翻 40 秒出锅。',m:2}],
+ tp:'牛肉要横纹切、锅要烧到冒烟、下锅先别翻。三点做到,家里的锅也能炒出嫩牛肉。黑胡椒最后再补一次,香味才冲。'},
+
+{id:'yangcongniurou',n:'洋葱炒牛肉',e:'🧅',cat:'stirfry',cu:'家常',t:28,d:2,sp:1,tl:['wok'],tg:['下饭','高蛋白','增肌'],
+ m:[{i:'niurou',q:300,u:'g'},{i:'yangcong',q:1,u:'个'}],s:[{i:'qingjiao',q:1,u:'个'},{i:'cong',q:2,u:'根'}],
+ se:['shengchou','laochou','haoyou','dianfen','liaojiu','tang','you','yan','jiang','hujiaofen'],
+ nu:{k:277,p:24,f:17,c:8},
+ st:[{t:'牛肉横纹切薄片,加生抽、蚝油、料酒、淀粉、姜末抓匀,拌油腌 15 分钟。',m:17},
+     {t:'洋葱切丝,青椒切丝。',m:4},
+     {t:'大火热油,牛肉片下锅摊平煎 30 秒再翻炒,共 80 秒盛出。',m:2},
+     {t:'补油下洋葱中火炒 3 分钟至软甜,下青椒炒 1 分钟。',m:4},
+     {t:'倒回牛肉,加生抽、少许老抽、半勺糖翻匀,撒葱花出锅。',m:2}],
+ tp:'牛肉宁生勿老。它在盛出后还会靠余温继续熟,所以炒到八成就该出锅。'},
+
+{id:'congbaoyangrou',n:'葱爆羊肉',e:'🍖',cat:'stirfry',cu:'北方',t:22,d:2,sp:1,tl:['wok'],tg:['快手','冬天','高蛋白','增肌'],
+ m:[{i:'yangrou',q:350,u:'g'},{i:'dacong',q:200,u:'g'}],s:[{i:'xiangcai',q:20,u:'g'}],
+ se:['shengchou','laochou','cu','liaojiu','dianfen','you','suan','yan','tang','huajiao','xiangyou'],
+ nu:{k:337,p:24,f:25,c:4},
+ st:[{t:'羊肉切薄片,加生抽、料酒、淀粉抓匀,拌油腌 10 分钟。',m:12},
+     {t:'大葱斜切成大段,葱白为主。这道菜葱是主角,量要够。',m:4},
+     {t:'调汁:生抽 1.5 勺、老抽半勺、醋 1 勺、糖半勺、盐,搅匀。醋是去羊肉膻味的关键。',m:2},
+     {t:'锅烧到冒烟,大火下羊肉片快速爆炒 60 秒至变色,盛出。',m:2},
+     {t:'补油下蒜片和葱段大火爆 40 秒——葱要爆到边缘微焦但还脆。',m:1},
+     {t:'倒回羊肉,淋入调好的汁,大火颠锅 30 秒,滴香油撒香菜出锅。',m:2}],
+ tp:'"爆"字意味着全程大火、总时长不超过 3 分钟。一勺醋在最后淋入,膻味立刻消失一半,这是北方馆子的老办法。'},
+
+{id:'xiarenhuadan',n:'虾仁滑蛋',e:'🦐',cat:'stirfry',cu:'粤菜',t:22,d:3,sp:0,tl:['wok'],tg:['高蛋白','宴客','低碳水','快手'],
+ m:[{i:'xia',q:250,u:'g'},{i:'jidan',q:5,u:'个'}],s:[{i:'cong',q:1,u:'根'},{i:'niunai',q:30,u:'ml'}],
+ se:['yan','you','liaojiu','dianfen','hujiaofen','xiangyou'],
+ nu:{k:230,p:22,f:15,c:2},
+ st:[{t:'虾仁去虾线,用少许盐和淀粉抓洗两遍再冲净——这样虾仁才脆弹。',m:6},
+     {t:'虾仁加盐、料酒、半勺淀粉、胡椒粉抓匀腌 10 分钟。',m:11},
+     {t:'鸡蛋打散,加 2 勺牛奶、少许盐和几滴香油,搅到完全均匀。牛奶让蛋更滑更香。',m:3},
+     {t:'热油下虾仁大火炒 40 秒至变红弯曲,盛出。',m:2},
+     {t:'锅洗净重新加多一点油,油温五成热(不要太热)倒入蛋液。',m:1},
+     {t:'小火,等蛋液边缘凝固就用铲子从边缘往中间轻推,推成大片嫩块。',m:2},
+     {t:'蛋液还有三成是流动状态时,倒回虾仁,轻轻拌两下立刻关火出锅。',m:1}],
+ tp:'滑蛋的全部技术在"欠火":看起来还没全熟就出锅,余温会把它带到刚好。炒到看起来熟了,端上桌就是老的。'},
+
+{id:'shousibaocai',n:'手撕包菜',e:'🥬',cat:'stirfry',cu:'家常',t:15,d:1,sp:2,tl:['wok'],tg:['快手','低卡','素菜','减脂','下饭'],
+ m:[{i:'baocai',q:500,u:'g'}],s:[{i:'wuhuarou',q:60,u:'g'},{i:'ganlajiao',q:5,u:'个'}],
+ se:['shengchou','cu','yan','tang','you','suan','huajiao','jijing'],
+ nu:{k:110,p:3,f:8,c:6},
+ st:[{t:'包菜用手撕成大块,不要用刀切。手撕的断面不规则,更容易挂住味道。洗净彻底沥干。',m:6},
+     {t:'五花肉切薄片(可省略),干辣椒剪段。',m:2},
+     {t:'锅中少油,下肉片煎出油,加蒜片、干辣椒、花椒小火炒 30 秒出香。',m:2},
+     {t:'转最大火,倒入包菜,快速翻炒 90 秒——全程大火,一秒都别停手。',m:2},
+     {t:'沿锅边淋 1 勺醋(锅边醋会瞬间气化增香),加生抽、盐、少许糖,再翻 20 秒出锅。',m:2}],
+ tp:'这道菜只有两个技术点:手撕、大火。醋一定沿着热锅边淋进去,不要直接浇在菜上。'},
+
+{id:'culiubaicai',n:'醋溜白菜',e:'🥬',cat:'stirfry',cu:'北方',t:15,d:1,sp:1,tl:['wok'],tg:['快手','低卡','素菜','减脂','冬天'],
+ m:[{i:'baicai',q:500,u:'g'}],s:[{i:'ganlajiao',q:3,u:'个'},{i:'huluobo',q:40,u:'g'}],
+ se:['cu','shengchou','tang','yan','dianfen','you','suan','huajiao'],
+ nu:{k:73,p:2,f:5,c:6},
+ st:[{t:'白菜帮斜刀切片(斜切增大受热面),白菜叶撕大块。帮和叶分开。',m:5},
+     {t:'调汁:醋 2 勺、生抽 1 勺、糖 1 勺、盐、半勺淀粉、3 勺水搅匀。',m:2},
+     {t:'热油下蒜片、干辣椒、花椒炒香。',m:2},
+     {t:'大火下白菜帮炒 2 分钟至半透明。',m:2},
+     {t:'下白菜叶炒 40 秒,淋入调好的汁,大火翻 30 秒收汁出锅。',m:2}],
+ tp:'白菜帮硬叶软,一起下锅必然一半生一半烂。斜切帮部、分两次下锅,这道简单的菜就能做出饭店水平。'},
+
+{id:'suanrongyoumai',n:'蒜蓉油麦菜',e:'🥬',cat:'stirfry',cu:'家常',t:10,d:1,sp:0,tl:['wok'],tg:['快手','低卡','素菜','减脂','新手友好'],
+ m:[{i:'youmaicai',q:400,u:'g'}],s:[{i:'suan',q:6,u:'瓣'}],
+ se:['yan','you','shengchou','haoyou','tang','jijing'],
+ nu:{k:67,p:2,f:5,c:3},
+ st:[{t:'油麦菜洗净切 6cm 长段,彻底沥干水。',m:4},
+     {t:'蒜切末,一半用来爆锅,一半留着最后放。',m:2},
+     {t:'热锅多油,下一半蒜末爆 15 秒出香(别爆黄)。',m:1},
+     {t:'转最大火倒入油麦菜,快速翻炒 60 秒至叶片刚变软。',m:1},
+     {t:'加盐、生抽、蚝油和少许糖,撒剩下的生蒜末,翻 15 秒立刻出锅。',m:2}],
+ tp:'绿叶菜的通用公式:沥干、多油、大火、60 秒。蒜分两次放,炒过的给底香,生的给冲劲。'},
+
+{id:'haoyoushengcai',n:'蚝油生菜',e:'🥬',cat:'stirfry',cu:'粤菜',t:12,d:1,sp:0,tl:['pot','wok'],tg:['快手','低卡','素菜','减脂','新手友好'],
+ m:[{i:'shengcai',q:500,u:'g'}],s:[{i:'suan',q:4,u:'瓣'}],
+ se:['haoyou','shengchou','tang','yan','you','dianfen'],
+ nu:{k:63,p:2,f:4,c:4},
+ st:[{t:'生菜掰成大片洗净。锅中水烧开,加少许盐和几滴油。',m:4},
+     {t:'下生菜焯 40 秒立刻捞出,沥干水摆盘。加油的水焯出来的菜特别绿亮。',m:2},
+     {t:'另起锅少油,下蒜末爆香。',m:1},
+     {t:'加蚝油 1.5 勺、生抽 1 勺、糖半勺、小半碗水烧开。',m:2},
+     {t:'淋少许淀粉水勾薄芡,汁变亮后浇在生菜上。',m:3}],
+ tp:'焯水时加几滴油,叶片会裹一层油膜,颜色油亮不发黄。芡要勾得薄,能挂住又不糊嘴。'},
+
+{id:'qingchaoxilanhua',n:'清炒西兰花',e:'🥦',cat:'stirfry',cu:'家常',t:15,d:1,sp:0,tl:['pot','wok'],tg:['低卡','素菜','减脂','新手友好'],
+ m:[{i:'xilanhua',q:400,u:'g'}],s:[{i:'huluobo',q:50,u:'g'},{i:'suan',q:4,u:'瓣'}],
+ se:['yan','you','haoyou','shengchou','tang','dianfen'],
+ nu:{k:80,p:4,f:5,c:5},
+ st:[{t:'西兰花切小朵,泡淡盐水 5 分钟(能泡出藏在花球里的东西),洗净。',m:6},
+     {t:'水开加盐和几滴油,下西兰花焯 90 秒至变翠绿,捞出过冷水保持脆度。',m:4},
+     {t:'热油下蒜末爆香,下胡萝卜片炒 1 分钟。',m:2},
+     {t:'下西兰花大火炒 1 分钟,加盐、蚝油、生抽和少许糖。',m:2},
+     {t:'淋一点淀粉水勾薄芡,翻匀出锅。',m:1}],
+ tp:'先焯水后快炒,西兰花才既熟透又保持翠绿脆感。直接生炒的话,要炒很久才熟,颜色早就发黄了。'},
+
+{id:'culiutudousi',n:'醋溜土豆丝',e:'🥔',cat:'stirfry',cu:'家常',t:20,d:2,sp:1,tl:['wok'],tg:['快手','素菜','下饭','经典'],
+ m:[{i:'tudou',q:2,u:'个'}],s:[{i:'qingjiao',q:1,u:'个'},{i:'ganlajiao',q:3,u:'个'}],
+ se:['cu','yan','tang','you','suan','huajiao','shengchou'],
+ nu:{k:130,p:3,f:5,c:19},
+ st:[{t:'土豆切细丝,越细越好。切好立刻放进清水里。',m:7},
+     {t:'反复换水冲洗 3 遍,洗到水完全清澈——洗掉表面淀粉是土豆丝脆而不粘的唯一办法。',m:4},
+     {t:'捞出彻底沥干。青椒切丝,干辣椒剪段。',m:3},
+     {t:'热油下干辣椒和花椒小火炒 20 秒,下蒜片爆香。',m:1},
+     {t:'转最大火倒入土豆丝,快速翻炒 90 秒。',m:2},
+     {t:'沿锅边淋 2 勺醋,加盐、少许糖和青椒丝,再炒 40 秒立刻出锅。',m:2}],
+ tp:'洗淀粉和大火快炒,决定这盘是"脆的醋溜土豆丝"还是"糊的土豆泥"。醋要分两次:一次锅边淋增香,出锅前再补几滴保酸味。'},
+
+{id:'ganbiandoujiao',n:'干煸豆角',e:'🫘',cat:'stirfry',cu:'川菜',t:30,d:2,sp:2,tl:['wok'],tg:['下饭','重口','经典'],
+ m:[{i:'doujiao',q:400,u:'g'},{i:'roumo',q:100,u:'g'}],s:[{i:'ganlajiao',q:6,u:'个'},{i:'suan',q:5,u:'瓣'}],
+ se:['huajiao','shengchou','laochou','yan','tang','you','jiang','ziran'],
+ nu:{k:220,p:9,f:16,c:9},
+ st:[{t:'豆角掰去两头和筋,折成 5cm 段,洗净彻底擦干。有水下锅会炸油。',m:7},
+     {t:'锅中稍多油,中火下豆角慢煸 8 分钟——耐心煸到表皮起皱、发白发软,这就是"干煸"。',m:9},
+     {t:'豆角推到锅边或盛出,下肉末炒散炒出油。',m:3},
+     {t:'加干辣椒段、花椒、姜蒜末小火炒 40 秒出香。',m:2},
+     {t:'倒回豆角,加生抽、少许老抽、盐、半勺糖和孜然,大火翻炒 2 分钟至完全干香。',m:3},
+     {t:'全程不加水,出锅。',m:1}],
+ tp:'"干煸"的意思是用油和时间把水分逼出去,煸 8 分钟不能偷懒。表皮起皱是熟透的标志,同时也解决了豆角的食品安全问题。'},
+
+{id:'disanxian',n:'地三鲜',e:'🍆',cat:'stirfry',cu:'东北',t:30,d:2,sp:0,tl:['wok'],tg:['下饭','素菜','经典','宴客'],
+ m:[{i:'qiezi',q:400,u:'g'},{i:'tudou',q:2,u:'个'},{i:'qingjiao',q:2,u:'个'}],s:[{i:'suan',q:5,u:'瓣'}],
+ se:['shengchou','laochou','haoyou','tang','dianfen','you','yan','jiang'],
+ nu:{k:243,p:4,f:16,c:22},
+ st:[{t:'茄子切滚刀块,泡淡盐水 5 分钟挤干。土豆切滚刀块,青椒切块。',m:8},
+     {t:'调汁:生抽 2 勺、老抽半勺、蚝油 1 勺、糖 1 勺、淀粉 1 勺、清水 5 勺搅匀。',m:2},
+     {t:'油温六成热先下土豆块,中火炸 4 分钟至表面金黄能插透,捞出。',m:5},
+     {t:'油温升高下茄子块,炸 2 分钟至变软金黄,捞出。最后下青椒块过油 20 秒捞出。',m:4},
+     {t:'锅留少许油,下姜蒜末爆香。',m:1},
+     {t:'倒入三样食材,淋入碗汁,大火翻炒 60 秒收汁挂匀出锅。',m:3}],
+ tp:'三样分开过油、先硬后软:土豆最久、茄子次之、青椒最后。一起下锅必然一半焦一半生。想省油可以改用少油煎。'},
+
+{id:'hongshaoqiezi',n:'红烧茄子',e:'🍆',cat:'stirfry',cu:'家常',t:25,d:2,sp:1,tl:['wok'],tg:['下饭','素菜','家常'],
+ m:[{i:'qiezi',q:500,u:'g'}],s:[{i:'qingjiao',q:1,u:'个'},{i:'suan',q:5,u:'瓣'},{i:'cong',q:1,u:'根'}],
+ se:['shengchou','laochou','haoyou','tang','cu','dianfen','you','yan','jiang','doubanjiang'],
+ nu:{k:180,p:2,f:13,c:12},
+ st:[{t:'茄子切滚刀块,撒一勺盐抓匀腌 8 分钟,用手挤出水分。腌过的茄子吸油量减半。',m:10},
+     {t:'调汁:生抽 2 勺、老抽半勺、蚝油 1 勺、糖 1 勺、醋半勺、淀粉半勺、清水半碗。',m:2},
+     {t:'锅中稍多油,下茄块中火煎 5 分钟至四面金黄软塌,盛出。',m:6},
+     {t:'锅留底油,下姜蒜末和半勺豆瓣酱小火炒 40 秒。',m:2},
+     {t:'倒回茄子,淋入碗汁,中火焖 3 分钟让茄子吸饱汁。',m:4},
+     {t:'加青椒块翻炒 40 秒,撒葱花出锅。',m:1}],
+ tp:'盐腌挤水是省油的核心。茄子像海绵,不挤水就会疯狂吸油;挤过水的茄子既省油,煎出来也更容易上色。'},
+
+{id:'fanqiecaihua',n:'番茄炒菜花',e:'🥦',cat:'stirfry',cu:'家常',t:22,d:1,sp:0,tl:['wok'],tg:['低卡','素菜','减脂','下饭'],
+ m:[{i:'caihua',q:400,u:'g'},{i:'xihongshi',q:2,u:'个'}],s:[{i:'suan',q:4,u:'瓣'}],
+ se:['yan','you','tang','shengchou','fanqiejiang'],
+ nu:{k:97,p:3,f:5,c:9},
+ st:[{t:'菜花切小朵,泡淡盐水 5 分钟洗净。西红柿去皮切块。',m:7},
+     {t:'开水下菜花焯 2 分钟至半熟,捞出沥干。菜花比西兰花硬,不焯很难炒熟。',m:4},
+     {t:'热油下蒜末爆香,下西红柿中火炒 4 分钟至出沙成糊。',m:5},
+     {t:'加 1 勺番茄酱增色增酸(可省略),加盐和半勺糖。',m:1},
+     {t:'倒入菜花,大火翻炒 2 分钟让每朵都裹上番茄汁,加几滴生抽出锅。',m:3}],
+ tp:'菜花焯水是必须的。西红柿一定要炒到出沙成糊,才能挂在菜花的缝隙里,不然就是菜花配番茄块。'},
+
+{id:'suchaowosun',n:'素炒莴笋',e:'🌿',cat:'stirfry',cu:'家常',t:15,d:1,sp:0,tl:['wok'],tg:['低卡','素菜','减脂','快手'],
+ m:[{i:'wosun',q:400,u:'g'}],s:[{i:'muer',q:10,u:'g'},{i:'huluobo',q:40,u:'g'}],
+ se:['yan','you','suan','shengchou','tang','xiangyou'],
+ nu:{k:70,p:2,f:5,c:4},
+ st:[{t:'莴笋削皮切菱形薄片,木耳泡发,胡萝卜切片。',m:6},
+     {t:'莴笋片撒少许盐腌 3 分钟,倒掉水——这步让莴笋更脆更入味。',m:4},
+     {t:'热油下蒜片爆香,下木耳和胡萝卜炒 1 分钟。',m:2},
+     {t:'大火下莴笋片炒 90 秒至半透明,加盐、生抽、少许糖。',m:2},
+     {t:'滴几滴香油翻匀出锅。',m:1}],
+ tp:'莴笋的清甜脆感全靠短时间大火。炒到发软就失去意义了,90 秒断生最好。'},
+
+{id:'xiangguqingcai',n:'香菇青菜',e:'🍄',cat:'stirfry',cu:'家常',t:18,d:1,sp:0,tl:['wok'],tg:['低卡','素菜','减脂','新手友好'],
+ m:[{i:'xianggu',q:150,u:'g'},{i:'xiaobaicai',q:400,u:'g'}],s:[{i:'suan',q:4,u:'瓣'}],
+ se:['haoyou','shengchou','yan','you','tang','dianfen'],
+ nu:{k:80,p:4,f:5,c:5},
+ st:[{t:'香菇去根切厚片,小白菜洗净对半剖开(大的切四瓣)。',m:6},
+     {t:'热油下蒜末爆香,下香菇中火炒 3 分钟至变软出香。香菇要炒透才不腥。',m:4},
+     {t:'转大火下小白菜,炒 90 秒至菜叶变软、菜梗仍脆。',m:2},
+     {t:'加蚝油 1 勺、生抽 1 勺、盐、少许糖,翻匀。',m:2},
+     {t:'淋一点淀粉水收成薄芡出锅。',m:2}],
+ tp:'香菇必须单独先炒透。和青菜一起下锅的话,青菜熟了香菇还是生的,那股土腥味会毁掉整盘菜。'},
+
+{id:'qingchaooupian',n:'清炒藕片',e:'🪷',cat:'stirfry',cu:'江浙',t:18,d:1,sp:1,tl:['wok'],tg:['低卡','素菜','减脂','快手'],
+ m:[{i:'lian',q:400,u:'g'}],s:[{i:'qingjiao',q:1,u:'个'},{i:'muer',q:8,u:'g'}],
+ se:['cu','yan','you','suan','tang','shengchou','huajiao'],
+ nu:{k:107,p:2,f:5,c:16},
+ st:[{t:'莲藕削皮切薄片,立刻泡进加了几滴醋的清水里,防止氧化变黑。',m:6},
+     {t:'反复冲洗两遍洗掉淀粉,沥干。青椒切片,木耳泡发。',m:4},
+     {t:'热油下花椒和蒜片爆香。',m:1},
+     {t:'大火下藕片炒 2 分钟,沿锅边淋 1.5 勺醋——醋能让藕片保持雪白脆爽。',m:3},
+     {t:'下青椒和木耳炒 1 分钟,加盐、少许糖和生抽翻匀出锅。',m:3}],
+ tp:'藕怕铁和空气,泡醋水、加醋炒,是保持白净的两道保险。选细长的七孔藕炒着脆,九孔粗藕适合炖汤。'},
+
+{id:'jiucaidouya',n:'韭菜炒豆芽',e:'🌱',cat:'stirfry',cu:'家常',t:12,d:1,sp:1,tl:['wok'],tg:['快手','低卡','素菜','减脂'],
+ m:[{i:'douya',q:400,u:'g'},{i:'jiucai',q:150,u:'g'}],s:[{i:'jianjiao',q:1,u:'个'}],
+ se:['yan','you','cu','shengchou','suan','jijing'],
+ nu:{k:70,p:4,f:4,c:4},
+ st:[{t:'豆芽洗净沥干,韭菜切段,尖椒切丝。',m:4},
+     {t:'热油下蒜末和尖椒爆香。',m:1},
+     {t:'转最大火倒入豆芽,快炒 90 秒——豆芽出水快,火小了就变成煮豆芽。',m:2},
+     {t:'沿锅边淋半勺醋,下韭菜炒 40 秒。',m:2},
+     {t:'加盐和几滴生抽,翻 15 秒立刻出锅。',m:2}],
+ tp:'这道菜的敌人是水。豆芽和韭菜都极易出水,只能靠最大火在 2 分钟内完成。盐一定最后放。'},
+
+{id:'suanxiangbocai',n:'蒜香菠菜',e:'🥬',cat:'stirfry',cu:'家常',t:12,d:1,sp:0,tl:['wok'],tg:['快手','低卡','素菜','减脂','新手友好'],
+ m:[{i:'bocai',q:450,u:'g'}],s:[{i:'suan',q:6,u:'瓣'}],
+ se:['yan','you','shengchou','xiangyou','jijing'],
+ nu:{k:70,p:3,f:5,c:3},
+ st:[{t:'菠菜洗净切段,根部保留(红根最甜)。彻底沥干。',m:5},
+     {t:'热锅多油,下一半蒜末爆 15 秒。',m:1},
+     {t:'转最大火,先下菠菜根部炒 30 秒,再下叶子。',m:2},
+     {t:'总共炒 90 秒至叶片刚塌,加盐、生抽和剩下的生蒜末。',m:2},
+     {t:'滴几滴香油,翻匀立刻出锅,连汁一起盛出。',m:2}],
+ tp:'菠菜草酸重,如果给孩子或老人吃,可以先焯 30 秒再炒。直接炒的话香味更足,但要接受一点涩感。'},
+
+{id:'jianjiaogandoufu',n:'尖椒干豆腐',e:'📄',cat:'stirfry',cu:'东北',t:18,d:1,sp:2,tl:['wok'],tg:['下饭','高蛋白','低碳水','家常'],
+ m:[{i:'gandoufu',q:300,u:'g'},{i:'jianjiao',q:4,u:'个'}],s:[{i:'zhurou',q:80,u:'g'},{i:'suan',q:4,u:'瓣'}],
+ se:['shengchou','laochou','haoyou','yan','you','tang','dianfen','jiang'],
+ nu:{k:250,p:18,f:16,c:8},
+ st:[{t:'干豆腐切菱形块或宽条,开水焯 1 分钟去豆腥,捞出沥干。',m:6},
+     {t:'尖椒斜切段,猪肉切丝(可省略)。',m:3},
+     {t:'热油下肉丝炒至变白,加姜蒜末爆香。',m:2},
+     {t:'下尖椒大火炒 90 秒至表皮起虎皮斑。',m:2},
+     {t:'下干豆腐,加生抽 2 勺、少许老抽、蚝油 1 勺、盐和半勺糖,翻炒 2 分钟。',m:3},
+     {t:'淋少许淀粉水勾薄芡出锅。',m:2}],
+ tp:'尖椒要炒出"虎皮"才够香,这需要大火和一点耐心。干豆腐焯水去豆腥这步值得做,前后差别很明显。'},
+
+{id:'xiangganqincai',n:'香干炒芹菜',e:'🟫',cat:'stirfry',cu:'江浙',t:18,d:1,sp:0,tl:['wok'],tg:['低卡','素菜','减脂','下饭'],
+ m:[{i:'xianggan',q:200,u:'g'},{i:'qincai',q:300,u:'g'}],s:[{i:'huluobo',q:40,u:'g'},{i:'suan',q:4,u:'瓣'}],
+ se:['shengchou','haoyou','yan','you','tang','xiangyou'],
+ nu:{k:157,p:11,f:9,c:7},
+ st:[{t:'芹菜撕掉老筋斜切段,香干切薄片,胡萝卜切片。',m:6},
+     {t:'热油下蒜末爆香,下香干片中火炒 2 分钟至边缘微焦出香。',m:3},
+     {t:'转大火下芹菜和胡萝卜炒 2 分钟至断生。',m:3},
+     {t:'加生抽、蚝油、盐、少许糖翻匀,滴香油出锅。',m:3}],
+ tp:'香干先煎到边缘微焦,豆香才出来。这道菜清爽高蛋白,每份不到 160 kcal,是减脂期少见的又好吃又管饱的素菜。'},
+
+{id:'ganguotudou',n:'干锅土豆片',e:'🥔',cat:'stirfry',cu:'川菜',t:30,d:2,sp:2,tl:['wok'],tg:['下饭','重口','宴客'],
+ m:[{i:'tudou',q:3,u:'个'},{i:'wuhuarou',q:120,u:'g'}],s:[{i:'qingjiao',q:1,u:'个'},{i:'yangcong',q:0.5,u:'个'},{i:'ganlajiao',q:5,u:'个'}],
+ se:['doubanjiang','shengchou','laochou','haoyou','tang','you','suan','jiang','huajiao','yan','ziran'],
+ nu:{k:307,p:8,f:20,c:24},
+ st:[{t:'土豆切 3mm 厚片,冲洗掉淀粉,沥干。五花肉切薄片。',m:8},
+     {t:'锅中稍多油,下土豆片中火煎 6 分钟,两面金黄边缘微脆,盛出。',m:7},
+     {t:'锅中下五花肉片煎出油,加姜蒜末、干辣椒、花椒小火炒 40 秒。',m:4},
+     {t:'加 1 勺豆瓣酱小火炒 40 秒出红油。',m:2},
+     {t:'下洋葱和青椒块炒 90 秒。',m:2},
+     {t:'倒回土豆片,加生抽、少许老抽、蚝油、半勺糖和孜然,大火翻炒 2 分钟,不加水,出锅。',m:3}],
+ tp:'土豆片要煎到边缘发脆而不是炒软,这是"干锅"和"炒土豆片"的区别。全程不加水,靠油和火气逼出香味。'},
+
+{id:'mapodoufu',n:'麻婆豆腐',e:'🍲',cat:'stirfry',cu:'川菜',t:25,d:2,sp:3,tl:['wok'],tg:['下饭','经典','重口','高蛋白'],
+ m:[{i:'doufu',q:500,u:'g'},{i:'roumo',q:120,u:'g'}],s:[{i:'cong',q:2,u:'根'}],
+ se:['doubanjiang','huajiao','lajiaomian','shengchou','laochou','dianfen','you','suan','jiang','tang','yan'],
+ nu:{k:250,p:16,f:18,c:6},
+ st:[{t:'豆腐切 2cm 方块,放淡盐水里焯 2 分钟——盐水焯过的豆腐不易碎、豆腥味也去了。轻轻捞出。',m:6},
+     {t:'热油下肉末炒散,炒到微微焦香出油。',m:4},
+     {t:'转小火,加 1.5 勺豆瓣酱和 1 勺辣椒面炒 60 秒,炒出红油再下姜蒜末。',m:2},
+     {t:'加生抽、少许老抽和一碗清水烧开。',m:2},
+     {t:'轻轻推入豆腐块(用铲子背推,别翻搅),中火煮 4 分钟入味。',m:5},
+     {t:'分三次淋入淀粉水,每次等汤汁重新沸腾再加,收成浓稠挂勺的状态。',m:3},
+     {t:'关火,撒现磨花椒粉和葱花。花椒粉一定最后撒,麻味才冲。',m:2}],
+ tp:'两个专业细节:豆腐用盐水焯过就不会碎;芡分三次勾,汁才能真正"抱"住豆腐。花椒粉出锅后撒,下锅炒就只剩苦味没有麻香。'},
+/* ---------- 炖菜 · 焖菜 ---------- */
+{id:'hongshaorou',n:'红烧肉',e:'🍖',cat:'stew',cu:'家常',t:80,d:3,sp:0,tl:['pot'],tg:['宴客','下饭','经典','冬天'],
+ m:[{i:'wuhuarou',q:600,u:'g'}],s:[{i:'jiang',q:5,u:'片'},{i:'cong',q:2,u:'根'}],
+ se:['bingtang','shengchou','laochou','liaojiu','yan','bajiao','guipi','xiangye','you'],
+ nu:{k:540,p:22,f:46,c:8},
+ st:[{t:'五花肉切 3cm 见方的块。选肥瘦五层的带皮五花,层数不够炖出来会散。',m:6},
+     {t:'冷水下锅,加姜片和料酒,水开后煮 3 分钟撇净浮沫,捞出用温水冲净。',m:8},
+     {t:'锅中少油,下 25g 冰糖小火慢慢熬化,熬到变成琥珀色、开始冒小泡时,立刻下肉块。',m:5},
+     {t:'翻炒 2 分钟让每块肉都均匀裹上糖色,炒到表面微微焦香。',m:3},
+     {t:'加生抽 3 勺、老抽 1 勺、料酒 2 勺,加八角桂皮香叶和葱姜,翻匀。',m:2},
+     {t:'加开水没过肉两指高——必须是开水,冷水会让肉瞬间收紧变硬。大火烧开转最小火。',m:3},
+     {t:'盖盖炖 50 分钟,筷子能轻松插透。中途不要开盖不要加水。',m:50},
+     {t:'开盖转大火,加盐调味,收汁 5 分钟到汤汁浓稠发亮、能挂在肉上。',m:6}],
+ tp:'炒糖色是这道菜唯一的技术门槛:小火,冰糖化开后颜色变深要立刻下肉,晚三秒就发苦。宁可颜色浅一点也不要熬过。收汁一定要开盖大火,不然永远是稀汤。'},
+
+{id:'tangcupaigu',n:'糖醋排骨',e:'🍖',cat:'stew',cu:'江浙',t:60,d:3,sp:0,tl:['pot'],tg:['宴客','孩子爱吃','经典'],
+ m:[{i:'paigu',q:600,u:'g'}],s:[{i:'jiang',q:4,u:'片'},{i:'baizhima',q:10,u:'g'}],
+ se:['cu','tang','shengchou','laochou','liaojiu','yan','bingtang','you','bajiao'],
+ nu:{k:490,p:29,f:35,c:14},
+ st:[{t:'排骨剁小段,冷水泡 30 分钟去血水,反复冲净。',m:32},
+     {t:'冷水下锅加姜料酒焯 3 分钟,撇沫捞出冲净沥干。',m:6},
+     {t:'记住这个比例:料酒 1 勺、生抽 2 勺、醋 3 勺、糖 4 勺。这就是"1234 糖醋汁",不用称也不会错。',m:2},
+     {t:'锅中少油,下排骨中火煎 4 分钟至表面微焦。',m:5},
+     {t:'倒入 1234 汁,加开水刚好没过排骨,加一颗八角,大火烧开转小火炖 25 分钟。',m:27},
+     {t:'开盖转大火收汁 6 分钟,不停翻动让糖汁均匀裹住排骨,收到浓稠发亮。',m:7},
+     {t:'关火前沿锅边补 1 勺醋提香,撒白芝麻。',m:1}],
+ tp:'"1234"是这道菜的通用口诀。醋分两次放:炖的时候放的醋会挥发掉大半只留下味道的骨架,关火前补的那一勺才是香气。'},
+
+{id:'tudouniurou',n:'土豆炖牛肉',e:'🥔',cat:'stew',cu:'家常',t:100,d:2,sp:0,tl:['pot'],tg:['下饭','冬天','高蛋白','一锅出'],
+ m:[{i:'niunan',q:500,u:'g'},{i:'tudou',q:3,u:'个'}],s:[{i:'huluobo',q:1,u:'根'},{i:'yangcong',q:0.5,u:'个'},{i:'jiang',q:4,u:'片'}],
+ se:['shengchou','laochou','liaojiu','bingtang','bajiao','guipi','xiangye','yan','you','hujiaofen'],
+ nu:{k:397,p:27,f:20,c:26},
+ st:[{t:'牛腩切 3cm 块,冷水下锅加姜料酒焯 5 分钟,撇净浮沫捞出冲洗。',m:9},
+     {t:'锅中少油,下 15g 冰糖炒糖色,下牛肉块翻炒上色 2 分钟。',m:5},
+     {t:'加姜片、洋葱块、八角桂皮香叶炒香,加生抽 3 勺、老抽 1 勺、料酒 2 勺。',m:3},
+     {t:'加开水没过牛肉两指,大火烧开转小火,盖盖炖 60 分钟。',m:62},
+     {t:'下土豆和胡萝卜块,加盐,继续炖 20 分钟至土豆软糯。',m:21},
+     {t:'土豆块会自然化开一部分,汤汁变浓稠,这时就好了。撒胡椒粉出锅。',m:2}],
+ tp:'土豆一定后放。和牛肉一起炖一小时的话土豆早化成泥了。想让汤更浓可以故意压碎两块土豆。'},
+
+{id:'fanqieniunan',n:'番茄牛腩',e:'🍅',cat:'stew',cu:'家常',t:105,d:2,sp:0,tl:['pot'],tg:['宴客','冬天','高蛋白','一锅出'],
+ m:[{i:'niunan',q:500,u:'g'},{i:'xihongshi',q:4,u:'个'}],s:[{i:'yangcong',q:1,u:'个'},{i:'huluobo',q:1,u:'根'},{i:'jiang',q:4,u:'片'}],
+ se:['fanqiejiang','shengchou','liaojiu','bingtang','bajiao','yan','you','hujiaofen'],
+ nu:{k:373,p:28,f:21,c:16},
+ st:[{t:'牛腩切块焯水撇沫,捞出冲净。',m:10},
+     {t:'西红柿去皮切块,分成两份:一份炒成酱,一份最后放保留果肉感。',m:6},
+     {t:'热油下洋葱炒软,下第一份西红柿中火炒 6 分钟至完全出沙成糊。',m:8},
+     {t:'加 2 勺番茄酱炒 1 分钟(让颜色更红味道更浓),下牛肉块翻炒 2 分钟。',m:4},
+     {t:'加生抽、料酒、10g 冰糖、一颗八角,加开水没过牛肉两指,大火烧开转小火炖 60 分钟。',m:62},
+     {t:'下胡萝卜块和第二份西红柿,加盐,再炖 15 分钟。',m:16},
+     {t:'汤汁自然收浓,撒胡椒粉出锅。',m:2}],
+ tp:'西红柿分两次放是这道菜的关键:先放的炒成酱底提供浓郁的酸甜,后放的保留果肉块口感。冰糖不是为了甜,是为了压住番茄的尖酸。'},
+
+{id:'kelejichi',n:'可乐鸡翅',e:'🍗',cat:'stew',cu:'家常',t:35,d:1,sp:0,tl:['pot'],tg:['孩子爱吃','快手','新手友好','宴客'],
+ m:[{i:'jichi',q:600,u:'g'},{i:'kele',q:400,u:'ml'}],s:[{i:'jiang',q:4,u:'片'},{i:'baizhima',q:5,u:'g'}],
+ se:['shengchou','laochou','liaojiu','yan','you','bajiao'],
+ nu:{k:353,p:31,f:20,c:12},
+ st:[{t:'鸡翅两面各划两刀到骨头,方便入味。',m:5},
+     {t:'冷水下锅加姜片料酒焯 3 分钟,撇沫捞出冲净擦干。',m:6},
+     {t:'锅中少油,下鸡翅中火煎 4 分钟,两面煎到金黄。煎过的鸡翅香味完全不同。',m:5},
+     {t:'加生抽 2 勺、老抽半勺、姜片和一颗八角翻匀。',m:2},
+     {t:'倒入可乐,液面刚好没过鸡翅,大火烧开转中小火煮 15 分钟。',m:16},
+     {t:'开盖转大火收汁 4 分钟,不停翻动让糖浆均匀裹上,收到浓稠发亮。撒白芝麻。',m:5}],
+ tp:'必须用含糖的可乐,零度可乐没有糖分收不出糖浆。收汁阶段要一直看着并翻动,可乐的糖分从"发亮"到"发苦"只有一分钟。'},
+
+{id:'tudoudunji',n:'土豆炖鸡',e:'🍗',cat:'stew',cu:'家常',t:55,d:2,sp:1,tl:['pot'],tg:['下饭','一锅出','家常','高蛋白'],
+ m:[{i:'jitui',q:600,u:'g'},{i:'tudou',q:3,u:'个'}],s:[{i:'huluobo',q:1,u:'根'},{i:'qingjiao',q:1,u:'个'},{i:'jiang',q:4,u:'片'}],
+ se:['shengchou','laochou','haoyou','liaojiu','bingtang','bajiao','yan','you','ganlajiao','hujiaofen'],
+ nu:{k:397,p:31,f:20,c:24},
+ st:[{t:'鸡腿斩块,冷水下锅加姜料酒焯 3 分钟,撇沫捞出冲净。',m:7},
+     {t:'土豆和胡萝卜切滚刀块。',m:5},
+     {t:'锅中少油,下 10g 冰糖炒糖色,下鸡块翻炒上色 3 分钟。',m:6},
+     {t:'加姜片、干辣椒、八角炒香,加生抽 3 勺、老抽半勺、蚝油 1 勺、料酒 2 勺。',m:3},
+     {t:'加开水没过鸡块,大火烧开转小火炖 20 分钟。',m:22},
+     {t:'下土豆和胡萝卜,加盐,继续炖 15 分钟至土豆软透。',m:16},
+     {t:'转大火收汁 3 分钟,下青椒块翻 40 秒,撒胡椒粉出锅。',m:4}],
+ tp:'鸡腿肉比鸡胸适合炖,炖久了也不柴。土豆后放 15 分钟刚好软而不散,汤汁被土豆的淀粉自然收浓,不用勾芡。'},
+
+{id:'huangmenji',n:'黄焖鸡',e:'🍗',cat:'stew',cu:'鲁菜',t:50,d:2,sp:1,tl:['pot'],tg:['下饭','一锅出','家常'],
+ m:[{i:'jitui',q:500,u:'g'},{i:'xianggu',q:150,u:'g'}],s:[{i:'qingjiao',q:1,u:'个'},{i:'jianjiao',q:2,u:'个'},{i:'jiang',q:4,u:'片'}],
+ se:['shengchou','laochou','haoyou','liaojiu','bingtang','yan','you','bajiao','hujiaofen','dianfen'],
+ nu:{k:370,p:31,f:22,c:9},
+ st:[{t:'鸡腿去骨切块,加生抽、料酒、胡椒粉、少许淀粉抓匀腌 15 分钟。',m:17},
+     {t:'香菇切厚片(干香菇泡发后留泡菇水,那是鲜味来源)。',m:5},
+     {t:'热油下鸡块中火煎 3 分钟至表面金黄,盛出。',m:4},
+     {t:'锅中下姜片和香菇炒 2 分钟出香。',m:3},
+     {t:'倒回鸡块,加生抽 2 勺、老抽半勺、蚝油 1 勺、10g 冰糖、一颗八角。',m:2},
+     {t:'加泡菇水和开水,液面到鸡肉的八成高,大火烧开转小火焖 20 分钟。',m:22},
+     {t:'下青椒尖椒块,加盐,转大火收汁 3 分钟至汤汁浓稠挂勺。',m:4}],
+ tp:'"焖"和"炖"的区别在水量:焖只加到食材的八成高,收出来的汁是浓稠挂勺的,直接拌饭。用干香菇的泡菇水代替清水,鲜味完全不同。'},
+
+{id:'dapanji',n:'大盘鸡',e:'🍗',cat:'stew',cu:'新疆',t:70,d:3,sp:2,tl:['pot'],tg:['宴客','一锅出','重口','冬天'],
+ m:[{i:'zhengji',q:800,u:'g'},{i:'tudou',q:3,u:'个'}],s:[{i:'qingjiao',q:2,u:'个'},{i:'yangcong',q:1,u:'个'},{i:'jianjiao',q:3,u:'个'},{i:'miantiao',q:150,u:'g'}],
+ se:['doubanjiang','shengchou','laochou','liaojiu','bingtang','bajiao','guipi','huajiao','ganlajiao','yan','you','jiang','suan','ziran'],
+ nu:{k:487,p:32,f:26,c:32},
+ st:[{t:'整鸡斩 3cm 块,冷水下锅加姜料酒焯 5 分钟,撇净血沫捞出冲洗。',m:9},
+     {t:'土豆切大滚刀块,洋葱切块,青椒尖椒切块。',m:6},
+     {t:'锅中稍多油,下 15g 冰糖炒糖色,下鸡块大火翻炒 4 分钟至上色出香。',m:7},
+     {t:'加姜蒜、干辣椒、花椒、八角桂皮,加 1.5 勺豆瓣酱,中火炒 2 分钟出红油。',m:3},
+     {t:'加生抽 3 勺、老抽 1 勺、料酒,加开水没过鸡块,大火烧开转中小火炖 25 分钟。',m:27},
+     {t:'下土豆块继续炖 15 分钟至软糯,加盐和孜然。',m:16},
+     {t:'下洋葱和青椒块,大火收汁 4 分钟。',m:5},
+     {t:'另锅煮宽面条,铺在盘底,把鸡和汤汁浇上去。',m:6}],
+ tp:'大盘鸡的精髓是最后用宽面条拌着汤汁吃,所以汁不要收得太干,留三分之一。土豆要切大块,小块会全部化掉。'},
+
+{id:'sanbeiji',n:'三杯鸡',e:'🍗',cat:'stew',cu:'台式',t:40,d:2,sp:0,tl:['pot'],tg:['下饭','宴客','家常'],
+ m:[{i:'jitui',q:600,u:'g'}],s:[{i:'jiang',q:8,u:'片'},{i:'suan',q:10,u:'瓣'},{i:'cong',q:3,u:'根'}],
+ se:['xiangyou','shengchou','liaojiu','bingtang','laochou','ganlajiao'],
+ nu:{k:407,p:31,f:26,c:6},
+ st:[{t:'"三杯"指等量的香油、酱油、米酒。用一个小碗做量具:香油 1 份、生抽 1 份、料酒 1 份。',m:2},
+     {t:'鸡腿斩块,焯水撇沫捞出擦干。',m:8},
+     {t:'锅中倒入那"一杯"香油,小火下厚姜片慢煎 3 分钟至姜片边缘卷曲发干——这叫"爆姜",是三杯鸡的香味地基。',m:4},
+     {t:'下整颗蒜瓣煎 2 分钟至微黄,加干辣椒。',m:3},
+     {t:'下鸡块中火翻炒 4 分钟至表面金黄。',m:5},
+     {t:'倒入生抽和料酒那两杯,加 15g 冰糖和少许老抽,翻匀。',m:2},
+     {t:'盖盖转小火焖 15 分钟,中途翻动两次。',m:16},
+     {t:'开盖大火收汁 3 分钟至浓稠发亮,撒大量葱段(或九层塔)翻匀出锅。',m:4}],
+ tp:'姜片一定要用香油慢煎到边缘发干卷曲,这一步的香味决定整道菜。全程不加一滴水,靠三杯调料和鸡自身的汁。'},
+
+{id:'kaleiji',n:'咖喱鸡',e:'🍛',cat:'stew',cu:'东南亚',t:45,d:2,sp:1,tl:['pot'],tg:['一锅出','孩子爱吃','宴客'],
+ m:[{i:'jitui',q:500,u:'g'},{i:'tudou',q:2,u:'个'},{i:'kaleifen',q:30,u:'g'}],s:[{i:'huluobo',q:1,u:'根'},{i:'yangcong',q:1,u:'个'},{i:'niunai',q:150,u:'ml'}],
+ se:['yan','you','shengchou','tang','hujiaofen'],
+ nu:{k:407,p:29,f:22,c:26},
+ st:[{t:'鸡腿去骨切块,加盐和胡椒粉抓匀腌 10 分钟。土豆胡萝卜切滚刀块,洋葱切丝。',m:12},
+     {t:'热油下洋葱中火炒 3 分钟至变软透明发甜——洋葱是咖喱甜味的来源,别省这三分钟。',m:4},
+     {t:'下鸡块炒 3 分钟至表面变白。',m:4},
+     {t:'下土豆和胡萝卜块炒 2 分钟。',m:3},
+     {t:'加开水刚好没过食材,大火烧开转中小火煮 15 分钟至土豆能插透。',m:17},
+     {t:'咖喱粉先用小半碗汤调成糊再倒回锅里,避免结块。转小火煮 5 分钟。',m:6},
+     {t:'倒入牛奶(或椰浆),加盐和少许糖,小火再煮 3 分钟收到浓稠。全程别大火,牛奶会分离。',m:4}],
+ tp:'咖喱粉不能直接撒进锅里,必须先用汤调成糊。加牛奶后只能小火,大火会让奶水分离出渣。'},
+
+{id:'shuizhuniurou',n:'水煮牛肉',e:'🌶️',cat:'stew',cu:'川菜',t:40,d:3,sp:3,tl:['pot'],tg:['宴客','重口','高蛋白','冬天'],
+ m:[{i:'niurou',q:400,u:'g'},{i:'douya',q:200,u:'g'}],s:[{i:'baicai',q:200,u:'g'},{i:'cong',q:2,u:'根'}],
+ se:['doubanjiang','huajiao','ganlajiao','lajiaomian','shengchou','dianfen','liaojiu','you','suan','jiang','yan','tang','hujiaofen'],
+ nu:{k:373,p:30,f:24,c:8},
+ st:[{t:'牛肉横纹切薄片,加生抽、料酒、胡椒粉抓匀,再加 1.5 勺淀粉和 1 勺水抓到发黏,最后拌半勺油,腌 20 分钟。',m:23},
+     {t:'豆芽和白菜焯熟,铺在深碗底部。',m:5},
+     {t:'锅中少油,小火下 2 勺豆瓣酱和花椒干辣椒炒 90 秒出红油。',m:3},
+     {t:'加姜蒜末炒香,加 3 碗开水烧开,加生抽、盐和少许糖调味,煮 3 分钟成红汤。',m:5},
+     {t:'转中火,牛肉片一片片下锅摊开(不要一坨扔进去),煮 90 秒变色立刻连汤倒进碗里。',m:3},
+     {t:'表面撒厚厚一层辣椒面、花椒粉和蒜末。',m:2},
+     {t:'烧 4 勺油到冒烟,均匀泼在辣椒面上,滋啦一声香味爆开。撒葱花。',m:3}],
+ tp:'牛肉上浆要"抓到发黏"——加淀粉后再加一勺水继续抓,这层浆是嫩滑的护甲。牛肉只煮 90 秒,靠最后的热油和滚汤余温继续熟。'},
+
+{id:'jiachangdoufu',n:'家常豆腐',e:'🍲',cat:'stew',cu:'川菜',t:30,d:2,sp:1,tl:['wok'],tg:['下饭','高蛋白','家常'],
+ m:[{i:'doufu',q:500,u:'g'},{i:'zhurou',q:120,u:'g'}],s:[{i:'qingjiao',q:1,u:'个'},{i:'muer',q:10,u:'g'},{i:'cong',q:2,u:'根'}],
+ se:['doubanjiang','shengchou','laochou','haoyou','tang','dianfen','you','suan','jiang','yan'],
+ nu:{k:280,p:19,f:19,c:8},
+ st:[{t:'老豆腐切三角厚片,用厨房纸吸干表面水分。',m:5},
+     {t:'平底锅多油,下豆腐片中火煎 4 分钟至一面金黄结壳,翻面再煎 3 分钟,盛出。',m:8},
+     {t:'猪肉切片,木耳泡发,青椒切块。',m:5},
+     {t:'锅留底油,下肉片炒至出油,加姜蒜末和 1 勺豆瓣酱小火炒 40 秒出红油。',m:3},
+     {t:'加生抽 2 勺、老抽半勺、蚝油 1 勺、半勺糖和半碗水烧开。',m:2},
+     {t:'倒回豆腐和木耳,中火焖 4 分钟让豆腐吸味。',m:5},
+     {t:'下青椒块,淋淀粉水勾芡,撒葱花出锅。',m:2}],
+ tp:'豆腐必须先煎出硬壳,后面焖的时候才不会碎成渣,还能吸住汤汁。吸干表面水是煎不粘锅的前提。'},
+
+{id:'qieziqmendoujiao',n:'茄子焖豆角',e:'🍆',cat:'stew',cu:'家常',t:32,d:2,sp:1,tl:['wok'],tg:['下饭','素菜','家常'],
+ m:[{i:'qiezi',q:400,u:'g'},{i:'doujiao',q:300,u:'g'}],s:[{i:'xihongshi',q:1,u:'个'},{i:'suan',q:6,u:'瓣'}],
+ se:['shengchou','laochou','haoyou','tang','you','yan','jiang','dianfen','doubanjiang'],
+ nu:{k:180,p:5,f:11,c:16},
+ st:[{t:'茄子切条泡盐水挤干,豆角折段,西红柿切块。',m:8},
+     {t:'豆角必须炒透:锅中稍多油,中火煸豆角 6 分钟至表皮起皱变软。',m:7},
+     {t:'下茄条一起煎 3 分钟至软塌。',m:4},
+     {t:'把菜推到一边,下姜蒜末和半勺豆瓣酱炒香,下西红柿炒 2 分钟出汁。',m:3},
+     {t:'加生抽 2 勺、老抽半勺、蚝油 1 勺、半勺糖和半碗水。',m:2},
+     {t:'盖盖中小火焖 6 分钟,让两样菜都吸透汤汁。',m:7},
+     {t:'开盖淋淀粉水收汁,加盐调味出锅。',m:2}],
+ tp:'豆角要先单独煸 6 分钟。这道菜的两样主料熟得一慢一快,豆角必须抢跑,不然茄子烂成泥豆角还是生的。'},
+
+{id:'baicaidoufudunrou',n:'白菜豆腐炖肉',e:'🥬',cat:'stew',cu:'东北',t:45,d:1,sp:0,tl:['pot'],tg:['冬天','一锅出','家常','下饭'],
+ m:[{i:'baicai',q:500,u:'g'},{i:'doufu',q:400,u:'g'},{i:'wuhuarou',q:200,u:'g'}],s:[{i:'fensi',q:50,u:'g'},{i:'jiang',q:4,u:'片'}],
+ se:['shengchou','laochou','yan','you','liaojiu','bajiao','hujiaofen','jijing'],
+ nu:{k:340,p:19,f:24,c:12},
+ st:[{t:'五花肉切薄片,白菜帮切块叶切大片,豆腐切厚块,粉丝泡软。',m:8},
+     {t:'锅中不放油,下五花肉片中火煎 4 分钟,把油逼出来。',m:5},
+     {t:'加姜片和一颗八角炒香,加生抽 2 勺、老抽半勺、料酒。',m:2},
+     {t:'下白菜帮炒 3 分钟至变软出水。',m:4},
+     {t:'加开水没过食材,下豆腐块,大火烧开转中小火炖 15 分钟。',m:17},
+     {t:'下白菜叶和粉丝再炖 5 分钟,加盐和胡椒粉调味出锅。',m:7}],
+ tp:'用五花肉自己逼出的油炒白菜,是这道菜香的全部原因。白菜帮和叶分两次下,豆腐中途放不容易碎。'},
+
+{id:'hongshaoyu',n:'红烧鱼',e:'🐟',cat:'stew',cu:'家常',t:40,d:3,sp:1,tl:['wok'],tg:['宴客','下饭','高蛋白'],
+ m:[{i:'caoyu',q:700,u:'g'}],s:[{i:'jiang',q:6,u:'片'},{i:'cong',q:3,u:'根'},{i:'suan',q:6,u:'瓣'}],
+ se:['shengchou','laochou','doubanjiang','tang','cu','liaojiu','yan','you','dianfen','hujiaofen'],
+ nu:{k:250,p:26,f:14,c:5},
+ st:[{t:'鱼处理干净,刮净腹内黑膜,两面各划三刀。用厨房纸把鱼身彻底擦干——这是不粘锅的第一条件。',m:8},
+     {t:'鱼身内外抹少许盐和料酒腌 10 分钟,再擦一次表面水分,薄薄拍一层干淀粉。',m:11},
+     {t:'锅烧到很热再下油,油热后撒一小撮盐,下鱼。第二条件:锅热、油热、鱼干。',m:2},
+     {t:'中火煎 4 分钟,不要动它,等它自己能滑动了再翻面,另一面再煎 3 分钟。',m:8},
+     {t:'鱼推到锅边,下姜蒜和半勺豆瓣酱炒香。',m:2},
+     {t:'加生抽 2 勺、老抽半勺、料酒 2 勺、1 勺糖、半勺醋和开水到鱼身一半高。',m:2},
+     {t:'中火焖 8 分钟,中途舀汤汁浇在鱼背上。',m:9},
+     {t:'把鱼盛出,汤汁淋淀粉水勾芡后浇在鱼上,撒葱丝。',m:3}],
+ tp:'煎鱼不破皮的三个条件:鱼身擦到全干、锅烧到冒烟、下锅后一分钟内不要碰它。撒一小撮盐在油里也能防粘。'},
+
+{id:'youmendaxia',n:'油焖大虾',e:'🦐',cat:'stew',cu:'鲁菜',t:25,d:2,sp:0,tl:['wok'],tg:['宴客','快手','高蛋白','低碳水'],
+ m:[{i:'xia',q:600,u:'g'}],s:[{i:'jiang',q:5,u:'片'},{i:'cong',q:3,u:'根'}],
+ se:['fanqiejiang','shengchou','tang','liaojiu','yan','you','cu','hujiaofen'],
+ nu:{k:180,p:23,f:7,c:6},
+ st:[{t:'虾剪去虾枪虾须,从背部剪开挑出虾线,保留虾头虾壳。',m:8},
+     {t:'热油下姜片爆香,下虾大火煎 90 秒至一面变红,翻面再煎 60 秒。',m:3},
+     {t:'用铲子按压虾头,把虾脑的红油挤出来——这层红油是这道菜的灵魂,别跳过。',m:2},
+     {t:'加料酒 2 勺、生抽 2 勺、1.5 勺番茄酱、1 勺糖和小半碗水。',m:2},
+     {t:'盖盖中火焖 4 分钟。',m:5},
+     {t:'开盖大火收汁 2 分钟至浓稠红亮,沿锅边淋几滴醋,撒葱段出锅。',m:3}],
+ tp:'按压虾头挤出虾油是这道菜和"番茄酱煮虾"的分界线。虾壳虾头都不要去,鲜味和红色都来自它们。'},
+
+{id:'suancaiyu',n:'酸菜鱼',e:'🐟',cat:'stew',cu:'川菜',t:45,d:3,sp:2,tl:['pot'],tg:['宴客','重口','高蛋白','冬天'],
+ m:[{i:'caoyu',q:700,u:'g'},{i:'suancai',q:250,u:'g'}],s:[{i:'jinzhengu',q:150,u:'g'},{i:'cong',q:2,u:'根'},{i:'jiang',q:5,u:'片'}],
+ se:['ganlajiao','huajiao','shengchou','dianfen','liaojiu','yan','you','suan','hujiaofen','baizhima'],
+ nu:{k:263,p:28,f:13,c:7},
+ st:[{t:'鱼片处理:鱼身贴骨切下两片肉,斜刀片成 3mm 薄片,鱼头鱼骨留着。',m:12},
+     {t:'鱼片用清水加少许盐抓洗两遍,洗到水变清,挤干。这步去腥去血水,鱼片才白。',m:4},
+     {t:'鱼片加盐、料酒、胡椒粉、1 个蛋清、1.5 勺淀粉抓到发黏,拌油腌 15 分钟。',m:16},
+     {t:'锅中少油,下鱼头鱼骨煎 3 分钟至两面金黄,加姜片和开水,大火煮 8 分钟成奶白汤,捞出骨头。',m:12},
+     {t:'另锅少油炒酸菜 3 分钟出香,倒入鱼汤,下金针菇煮 3 分钟,连汤菜一起盛进大碗。',m:7},
+     {t:'汤重新烧到微沸(不要滚开),鱼片一片片滑入,煮 60 秒变白立刻捞进碗里。',m:3},
+     {t:'锅中烧 3 勺油,下干辣椒段和花椒炸 20 秒,连油泼在鱼片上,撒葱花白芝麻。',m:3}],
+ tp:'鱼片下锅时汤只能"微沸"不能滚开,大滚会把鱼片冲散。煮 60 秒就够,鱼片薄,余温会继续加热。'},
+
+{id:'fuzhushaorou',n:'腐竹烧肉',e:'🟡',cat:'stew',cu:'家常',t:75,d:2,sp:0,tl:['pot'],tg:['下饭','冬天','家常','高蛋白'],
+ m:[{i:'wuhuarou',q:400,u:'g'},{i:'fuzhu',q:100,u:'g'}],s:[{i:'muer',q:15,u:'g'},{i:'jiang',q:4,u:'片'}],
+ se:['shengchou','laochou','bingtang','liaojiu','yan','you','bajiao','guipi','haoyou'],
+ nu:{k:463,p:24,f:36,c:11},
+ st:[{t:'腐竹用温水泡 40 分钟至完全变软(中间没有硬芯),切段。木耳泡发。',m:42},
+     {t:'五花肉切块,冷水下锅焯 3 分钟撇沫,捞出冲净。',m:7},
+     {t:'锅中少油下 15g 冰糖炒糖色,下肉块翻炒上色。',m:5},
+     {t:'加姜片、八角桂皮炒香,加生抽 3 勺、老抽 1 勺、蚝油 1 勺、料酒 2 勺。',m:3},
+     {t:'加开水没过肉,大火烧开转小火炖 30 分钟。',m:32},
+     {t:'下腐竹和木耳,加盐,继续炖 12 分钟——腐竹要炖透才好吃,会吸满肉汁。',m:13},
+     {t:'转大火收汁 4 分钟出锅。',m:5}],
+ tp:'腐竹一定要用温水泡透,凉水泡不开、热水泡会烂。泡的时候压个盘子让它完全没在水里,不然浮出水面的部分永远是硬的。'},
+
+{id:'xiaojidunmogu',n:'小鸡炖蘑菇',e:'🍄',cat:'stew',cu:'东北',t:70,d:2,sp:0,tl:['pot'],tg:['冬天','宴客','一锅出','高蛋白'],
+ m:[{i:'zhengji',q:800,u:'g'},{i:'xianggu',q:200,u:'g'}],s:[{i:'fensi',q:60,u:'g'},{i:'jiang',q:5,u:'片'},{i:'cong',q:2,u:'根'}],
+ se:['shengchou','laochou','liaojiu','bingtang','bajiao','yan','you','ganlajiao','hujiaofen'],
+ nu:{k:430,p:35,f:26,c:12},
+ st:[{t:'整鸡斩块,冷水下锅加姜料酒焯 5 分钟,撇净血沫捞出冲洗。',m:9},
+     {t:'干香菇温水泡 30 分钟,泡菇水滤净留着——这碗水是这道菜鲜味的来源。粉丝泡软。',m:32},
+     {t:'锅中少油,下 10g 冰糖炒糖色,下鸡块大火翻炒 4 分钟至上色。',m:6},
+     {t:'加姜片葱段、八角、干辣椒炒香,加生抽 3 勺、老抽半勺、料酒 2 勺。',m:3},
+     {t:'倒入泡菇水和开水没过鸡块,下香菇,大火烧开转小火炖 35 分钟。',m:37},
+     {t:'加盐调味,下粉丝再煮 5 分钟(粉丝吸汤,别太早放)。',m:6},
+     {t:'撒胡椒粉和葱花出锅。',m:1}],
+ tp:'用干香菇不用鲜香菇,泡菇水一定要留。干香菇的鸟苷酸和鸡肉的肌苷酸叠加,鲜味是相乘不是相加的关系。'},
+
+{id:'paigudunou',n:'排骨炖藕',e:'🪷',cat:'stew',cu:'湖北',t:85,d:1,sp:0,tl:['pot'],tg:['冬天','养胃','一锅出','高蛋白'],
+ m:[{i:'paigu',q:500,u:'g'},{i:'lian',q:500,u:'g'}],s:[{i:'jiang',q:5,u:'片'},{i:'cong',q:2,u:'根'}],
+ se:['yan','liaojiu','hujiaofen','bajiao'],
+ nu:{k:363,p:26,f:20,c:22},
+ st:[{t:'排骨冷水泡 30 分钟去血水,冲净。',m:32},
+     {t:'莲藕削皮切大块。炖汤要选粗短的九孔藕,炖出来粉糯;细长的七孔藕适合炒。',m:6},
+     {t:'排骨冷水下锅,加姜片和料酒,大火烧开撇净浮沫。',m:6},
+     {t:'转小火炖 40 分钟,不要盖严,留一条缝。',m:41},
+     {t:'下藕块和一颗八角,继续小火炖 25 分钟至藕变粉糯。',m:26},
+     {t:'关火前加盐和胡椒粉调味,撒葱花。',m:2}],
+ tp:'盐一定最后放。早放盐蛋白质会提前凝固,肉炖不烂汤也不白。这道菜清炖不加酱油,喝的就是排骨和藕的本味。'},
+
+/* ---------- 汤羹 ---------- */
+{id:'fanqiedantang',n:'西红柿蛋汤',e:'🍅',cat:'soup',cu:'家常',t:12,d:1,sp:0,tl:['pot'],tg:['快手','低卡','新手友好','减脂'],
+ m:[{i:'xihongshi',q:2,u:'个'},{i:'jidan',q:2,u:'个'}],s:[{i:'cong',q:1,u:'根'}],
+ se:['yan','you','tang','xiangyou','dianfen','hujiaofen'],
+ nu:{k:87,p:5,f:5,c:5},
+ st:[{t:'西红柿去皮切小块,鸡蛋打散。',m:4},
+     {t:'锅中少油,下西红柿中火炒 3 分钟至出沙——炒过的西红柿汤才浓,直接煮的是清水味。',m:4},
+     {t:'加 4 碗水烧开,加盐和半勺糖,煮 2 分钟。',m:3},
+     {t:'淋少许淀粉水让汤微微浓稠,这样蛋花能悬在汤里不沉底。',m:1},
+     {t:'关小火,汤微沸时把蛋液高高地、细细地转圈淋入,静待 5 秒再推动,蛋花就是絮状的。',m:1},
+     {t:'滴香油,撒葱花和胡椒粉。',m:1}],
+ tp:'蛋花漂亮的三个条件:汤要微沸不能大滚、蛋液要举高细淋、淋完等 5 秒再搅。搅早了就是一锅蛋渣。'},
+
+{id:'zicaidanhuatang',n:'紫菜蛋花汤',e:'🌿',cat:'soup',cu:'家常',t:8,d:1,sp:0,tl:['pot'],tg:['快手','低卡','极简','减脂','新手友好'],
+ m:[{i:'zicai',q:10,u:'g'},{i:'jidan',q:2,u:'个'}],s:[{i:'xiapi',q:5,u:'g'},{i:'cong',q:1,u:'根'}],
+ se:['yan','xiangyou','hujiaofen','shengchou'],
+ nu:{k:60,p:5,f:4,c:2},
+ st:[{t:'紫菜撕小块放碗底,鸡蛋打散。',m:2},
+     {t:'锅中 4 碗水烧开,下虾皮煮 2 分钟出鲜味。',m:3},
+     {t:'加盐和几滴生抽调味。',m:1},
+     {t:'转小火保持微沸,蛋液举高细细淋入,等 5 秒后轻推成絮。',m:1},
+     {t:'把汤冲进放了紫菜的碗里(紫菜不用煮,冲一下就开),滴香油撒葱花胡椒粉。',m:1}],
+ tp:'紫菜不要下锅煮,煮久了会烂成糊还发苦。放在碗底用热汤冲开是最好的做法。'},
+
+{id:'siguadantang',n:'丝瓜蛋汤',e:'🥒',cat:'soup',cu:'家常',t:12,d:1,sp:0,tl:['pot'],tg:['快手','低卡','夏天','减脂'],
+ m:[{i:'sigua',q:2,u:'根'},{i:'jidan',q:2,u:'个'}],s:[{i:'xiapi',q:5,u:'g'},{i:'jiang',q:2,u:'片'}],
+ se:['yan','you','xiangyou','hujiaofen'],
+ nu:{k:77,p:5,f:5,c:4},
+ st:[{t:'丝瓜削皮切滚刀块,切好立刻下锅或泡水,不然很快氧化变黑。',m:4},
+     {t:'锅中少油,下姜片和虾皮炒香,下丝瓜炒 90 秒至边缘变软。',m:3},
+     {t:'加 4 碗开水,大火煮 3 分钟至丝瓜变透明软烂。',m:4},
+     {t:'加盐调味,转小火淋入蛋液推成蛋花。',m:1},
+     {t:'滴香油撒胡椒粉出锅。',m:1}],
+ tp:'丝瓜氧化极快,削皮切块后要马上下锅。丝瓜本身很甜,这道汤基本不需要其他调味。'},
+
+{id:'dongguapaigutang',n:'冬瓜排骨汤',e:'🥒',cat:'soup',cu:'家常',t:75,d:1,sp:0,tl:['pot'],tg:['低卡','减脂','夏天','养胃','高蛋白'],
+ m:[{i:'paigu',q:500,u:'g'},{i:'donggua',q:500,u:'g'}],s:[{i:'jiang',q:5,u:'片'},{i:'cong',q:1,u:'根'}],
+ se:['yan','liaojiu','hujiaofen'],
+ nu:{k:237,p:24,f:14,c:4},
+ st:[{t:'排骨冷水泡 30 分钟去血水,反复冲净。',m:32},
+     {t:'冬瓜去皮去籽切厚块,不用切太小,炖了会缩。',m:5},
+     {t:'排骨冷水下锅,加姜片和料酒,大火烧开后耐心撇净所有浮沫——撇干净汤才清。',m:7},
+     {t:'转小火炖 35 分钟,锅盖留缝。',m:36},
+     {t:'下冬瓜块,继续小火炖 12 分钟至冬瓜变透明。',m:13},
+     {t:'关火前加盐和胡椒粉,撒葱花。',m:2}],
+ tp:'冬瓜变透明就是熟了,再炖就化了。这道汤每份只有 237 kcal 却有 24g 蛋白质,是减脂期的标准配置。'},
+
+{id:'yumipaigutang',n:'玉米排骨汤',e:'🌽',cat:'soup',cu:'家常',t:80,d:1,sp:0,tl:['pot'],tg:['养胃','孩子爱吃','高蛋白','一锅出'],
+ m:[{i:'paigu',q:500,u:'g'},{i:'yumi',q:2,u:'根'}],s:[{i:'huluobo',q:1,u:'根'},{i:'jiang',q:5,u:'片'}],
+ se:['yan','liaojiu','hujiaofen'],
+ nu:{k:290,p:25,f:15,c:16},
+ st:[{t:'排骨冷水泡 30 分钟去血水,冲净。玉米切段,胡萝卜切块。',m:33},
+     {t:'排骨冷水下锅加姜片料酒,大火烧开撇净浮沫。',m:7},
+     {t:'转小火炖 35 分钟。',m:36},
+     {t:'下玉米段和胡萝卜块,继续炖 20 分钟。',m:21},
+     {t:'关火前加盐和胡椒粉调味。',m:2}],
+ tp:'玉米中途放,炖太久玉米的甜味会全部跑到汤里、自己变得没味道。想汤更甜就选甜玉米而不是糯玉米。'},
+
+{id:'shanyaopaigutang',n:'山药排骨汤',e:'🍠',cat:'soup',cu:'家常',t:80,d:2,sp:0,tl:['pot'],tg:['养胃','冬天','高蛋白','养生'],
+ m:[{i:'paigu',q:500,u:'g'},{i:'shanyao',q:400,u:'g'}],s:[{i:'hongzao',q:6,u:'颗'},{i:'gouqi',q:10,u:'g'},{i:'jiang',q:5,u:'片'}],
+ se:['yan','liaojiu','hujiaofen'],
+ nu:{k:297,p:25,f:14,c:18},
+ st:[{t:'排骨冷水泡 30 分钟去血水,冲净。',m:32},
+     {t:'山药削皮切段。削皮时戴手套或在水下削,山药的黏液会让手发痒。切好泡水防氧化。',m:6},
+     {t:'排骨冷水下锅加姜料酒,烧开撇净浮沫,转小火炖 35 分钟。',m:38},
+     {t:'下山药和红枣,继续小火炖 15 分钟至山药软糯。',m:16},
+     {t:'关火前 2 分钟下枸杞,加盐和胡椒粉。枸杞久煮会发酸。',m:3}],
+ tp:'枸杞永远最后两分钟放。山药选铁棍山药炖出来粉糯,菜山药水分多适合炒。'},
+
+{id:'luoboniunantang',n:'萝卜牛腩汤',e:'🥕',cat:'soup',cu:'粤菜',t:110,d:2,sp:0,tl:['pot'],tg:['冬天','高蛋白','养胃','一锅出'],
+ m:[{i:'niunan',q:500,u:'g'},{i:'bailuobo',q:500,u:'g'}],s:[{i:'jiang',q:6,u:'片'},{i:'cong',q:2,u:'根'},{i:'xiangcai',q:15,u:'g'}],
+ se:['yan','liaojiu','hujiaofen','bajiao','ganlajiao'],
+ nu:{k:307,p:27,f:19,c:8},
+ st:[{t:'牛腩切大块,冷水下锅加姜料酒焯 5 分钟,撇净血沫捞出冲净。',m:9},
+     {t:'白萝卜削皮切厚块。',m:5},
+     {t:'牛腩放回锅中,加开水没过两指,加姜片、一颗八角、两个干辣椒。',m:3},
+     {t:'大火烧开转最小火炖 70 分钟至牛腩能用筷子插透。',m:71},
+     {t:'下白萝卜块继续炖 20 分钟至萝卜透明。',m:21},
+     {t:'加盐和胡椒粉调味,撒葱花香菜。',m:2}],
+ tp:'萝卜要炖到完全透明才好吃,半透明的还有辛辣味。牛腩炖足 70 分钟是底线,不到时间怎么调味都是硬的。'},
+
+{id:'dongguaxiapitang',n:'冬瓜虾皮汤',e:'🦐',cat:'soup',cu:'家常',t:18,d:1,sp:0,tl:['pot'],tg:['快手','低卡','减脂','夏天','新手友好'],
+ m:[{i:'donggua',q:500,u:'g'},{i:'xiapi',q:15,u:'g'}],s:[{i:'jiang',q:3,u:'片'},{i:'cong',q:1,u:'根'}],
+ se:['yan','you','xiangyou','hujiaofen'],
+ nu:{k:47,p:4,f:2,c:3},
+ st:[{t:'冬瓜去皮去籽切薄片。切薄一点,煮得快也更好入味。',m:5},
+     {t:'锅中少油,下姜片和虾皮小火炒 60 秒——虾皮炒过之后鲜味才出来。',m:2},
+     {t:'加 5 碗水大火烧开。',m:3},
+     {t:'下冬瓜片煮 6 分钟至完全透明软烂。',m:7},
+     {t:'加盐调味,滴香油,撒葱花和胡椒粉。',m:1}],
+ tp:'每份 47 kcal,几乎是最低热量的一碗汤。虾皮下锅前先干炒一下,这个小动作能让整锅汤的鲜味翻倍,不用鸡精。'},
+
+{id:'baicaidoufutang',n:'白菜豆腐汤',e:'🥬',cat:'soup',cu:'家常',t:20,d:1,sp:0,tl:['pot'],tg:['低卡','素菜','减脂','养胃','冬天'],
+ m:[{i:'baicai',q:400,u:'g'},{i:'doufu',q:300,u:'g'}],s:[{i:'xiapi',q:10,u:'g'},{i:'jiang',q:3,u:'片'},{i:'cong',q:1,u:'根'}],
+ se:['yan','you','xiangyou','hujiaofen','jijing'],
+ nu:{k:107,p:9,f:6,c:4},
+ st:[{t:'白菜帮切条叶切块,豆腐切厚片。',m:5},
+     {t:'锅中少油,下姜片和虾皮炒香,下白菜帮炒 2 分钟。',m:3},
+     {t:'加 5 碗开水,下豆腐块,大火烧开转中火煮 8 分钟。',m:9},
+     {t:'下白菜叶再煮 2 分钟。',m:3},
+     {t:'加盐调味,滴香油撒葱花胡椒粉。',m:1}],
+ tp:'白菜先用油炒一下再加水,汤会有奶白色的感觉,比直接水煮香很多。这是所有清汤的通用技巧。'},
+
+{id:'suanlatang',n:'酸辣汤',e:'🌶️',cat:'soup',cu:'川菜',t:25,d:2,sp:2,tl:['pot'],tg:['开胃','重口','冬天','低卡'],
+ m:[{i:'doufu',q:200,u:'g'},{i:'muer',q:15,u:'g'},{i:'jidan',q:2,u:'个'}],s:[{i:'xianggu',q:80,u:'g'},{i:'huluobo',q:50,u:'g'},{i:'cong',q:1,u:'根'}],
+ se:['cu','hujiaofen','shengchou','laochou','dianfen','yan','xiangyou','lajiaomian','you'],
+ nu:{k:113,p:8,f:6,c:8},
+ st:[{t:'豆腐、木耳、香菇、胡萝卜全部切细丝。切得细是这道汤的关键,口感才协调。',m:10},
+     {t:'锅中 5 碗水烧开,下香菇木耳胡萝卜丝煮 4 分钟。',m:5},
+     {t:'下豆腐丝,加生抽 2 勺、少许老抽调色、盐,煮 2 分钟。',m:3},
+     {t:'分两次淋入淀粉水勾芡,勾到能挂勺的浓稠度——酸辣汤必须是浓的。',m:2},
+     {t:'转小火淋入蛋液推成蛋花。',m:1},
+     {t:'关火!然后加 3 勺醋和 1 大勺白胡椒粉。这两样必须关火后放。',m:2},
+     {t:'滴香油,撒葱花和辣椒面。',m:1}],
+ tp:'醋和胡椒粉一定要关火后才放。醋一煮酸味就跑光了,胡椒粉一煮辣味变成苦味。酸和辣全靠这最后一步。'},
+
+{id:'luosongtang',n:'罗宋汤',e:'🍲',cat:'soup',cu:'西式',t:90,d:2,sp:0,tl:['pot'],tg:['冬天','一锅出','宴客','孩子爱吃'],
+ m:[{i:'niunan',q:400,u:'g'},{i:'xihongshi',q:4,u:'个'},{i:'baocai',q:300,u:'g'}],
+ s:[{i:'tudou',q:2,u:'个'},{i:'huluobo',q:1,u:'根'},{i:'yangcong',q:1,u:'个'},{i:'qincai',q:80,u:'g'}],
+ se:['fanqiejiang','yan','you','tang','heijiao','laochou','bajiao'],
+ nu:{k:317,p:24,f:16,c:22},
+ st:[{t:'牛腩切小块焯水撇沫,捞出冲净。',m:9},
+     {t:'所有蔬菜切块:西红柿去皮、包菜切块、土豆胡萝卜切块、洋葱和芹菜切碎。',m:10},
+     {t:'锅中油下洋葱炒 3 分钟至透明,下西红柿中火炒 6 分钟至完全出沙。',m:10},
+     {t:'加 3 勺番茄酱炒 2 分钟——番茄酱决定这锅汤的颜色和浓度,别省。',m:3},
+     {t:'下牛腩块炒匀,加开水没过食材,加一颗八角,大火烧开转小火炖 50 分钟。',m:52},
+     {t:'下土豆和胡萝卜炖 15 分钟,再下包菜和芹菜炖 8 分钟。',m:24},
+     {t:'加盐、少许糖和大量黑胡椒调味。',m:2}],
+ tp:'洋葱和西红柿必须先炒透炒出沙,这是浓度的来源。所有蔬菜按硬度分批下锅,一起下就成了一锅烂糊。'},
+
+{id:'yinerlianzigeng',n:'银耳莲子羹',e:'🤍',cat:'soup',cu:'家常',t:75,d:1,sp:0,tl:['pot'],tg:['甜品','养生','素菜','养胃'],
+ m:[{i:'yiner',q:25,u:'g'},{i:'lianzi',q:40,u:'g'}],s:[{i:'hongzao',q:8,u:'颗'},{i:'gouqi',q:10,u:'g'}],
+ se:['bingtang'],
+ nu:{k:110,p:2,f:0,c:26},
+ st:[{t:'银耳冷水泡 40 分钟至完全舒展,剪掉黄色根部,撕成非常小的碎朵。',m:42},
+     {t:'撕得越碎越容易出胶。这是能不能煮出黏稠感的唯一决定因素。',m:2},
+     {t:'莲子泡 30 分钟,去掉中间的苦芯。',m:3},
+     {t:'银耳和莲子加 6 碗水,大火烧开后转小火煮 40 分钟。',m:42},
+     {t:'看到汤汁变得浓稠拉丝就对了。下红枣和冰糖再煮 8 分钟。',m:9},
+     {t:'关火前 2 分钟下枸杞。',m:3}],
+ tp:'出胶的秘诀只有一个:撕得足够碎 + 煮足 40 分钟。大朵银耳煮两小时也不会黏。冰糖要后放,早放会影响出胶。'},
+
+{id:'qingdunjitang',n:'清炖鸡汤',e:'🐔',cat:'soup',cu:'家常',t:100,d:1,sp:0,tl:['pot'],tg:['养胃','冬天','高蛋白','养生'],
+ m:[{i:'zhengji',q:800,u:'g'}],s:[{i:'hongzao',q:8,u:'颗'},{i:'gouqi',q:10,u:'g'},{i:'jiang',q:6,u:'片'},{i:'cong',q:2,u:'根'}],
+ se:['yan','liaojiu','hujiaofen'],
+ nu:{k:277,p:32,f:15,c:4},
+ st:[{t:'整鸡去掉鸡屁股和内脏残留,剪掉多余的皮和油脂——鸡皮下的黄油是汤腻的主要来源。',m:8},
+     {t:'冷水下锅,加姜片葱段和料酒,大火烧开,耐心撇净所有浮沫,这决定汤清不清。',m:10},
+     {t:'转最小火,保持汤面"似开非开"的微沸状态,炖 70 分钟。',m:71},
+     {t:'全程锅盖留一条缝。盖严了汤会翻滚变浑浊。',m:1},
+     {t:'下红枣再炖 10 分钟,关火前 2 分钟下枸杞。',m:12},
+     {t:'加盐和胡椒粉调味。想更清爽可以把表面的浮油撇掉。',m:2}],
+ tp:'清汤和浊汤的分界线是火候:大火滚沸会把脂肪和蛋白打碎成乳浊液,汤就白了浑了。想喝清汤就全程小火微沸,盖子留缝。盐永远最后放。'},
+
+{id:'gelidoufutang',n:'蛤蜊豆腐汤',e:'🦪',cat:'soup',cu:'家常',t:70,d:1,sp:0,tl:['pot'],tg:['鲜味','低卡','减脂','高蛋白','快手'],
+ m:[{i:'geli',q:500,u:'g'},{i:'doufu',q:300,u:'g'}],s:[{i:'jiang',q:4,u:'片'},{i:'cong',q:2,u:'根'}],
+ se:['yan','you','liaojiu','hujiaofen','xiangyou'],
+ nu:{k:110,p:12,f:5,c:3},
+ st:[{t:'蛤蜊放淡盐水加几滴香油,静置 1 小时吐沙。中途换一次水,搓洗干净。',m:62},
+     {t:'豆腐切厚块。',m:3},
+     {t:'锅中少油,下姜片炒香,加 4 碗水和料酒烧开。',m:4},
+     {t:'下豆腐块煮 4 分钟。',m:5},
+     {t:'下蛤蜊,盖盖大火煮 3 分钟,看到全部开口立刻关火。',m:4},
+     {t:'加少许盐(蛤蜊本身很咸,先尝再加)、胡椒粉、香油和葱花。',m:2}],
+ tp:'蛤蜊开口就熟了,多煮 1 分钟肉就缩成一小粒。盐一定要先尝汤再决定加不加,蛤蜊的海水本身就有咸度。'},
+
+{id:'bocaifensitang',n:'菠菜粉丝汤',e:'🥬',cat:'soup',cu:'家常',t:15,d:1,sp:0,tl:['pot'],tg:['快手','低卡','素菜','新手友好'],
+ m:[{i:'bocai',q:300,u:'g'},{i:'fensi',q:60,u:'g'}],s:[{i:'jidan',q:1,u:'个'},{i:'xiapi',q:10,u:'g'},{i:'jiang',q:2,u:'片'}],
+ se:['yan','you','xiangyou','hujiaofen','shengchou'],
+ nu:{k:120,p:6,f:5,c:14},
+ st:[{t:'粉丝温水泡 10 分钟至软,菠菜洗净切段。',m:11},
+     {t:'锅中少油,下姜片和虾皮炒香,加 5 碗水烧开。',m:4},
+     {t:'下粉丝煮 3 分钟。',m:4},
+     {t:'转小火淋入蛋液推成蛋花,加盐和几滴生抽。',m:1},
+     {t:'下菠菜煮 40 秒立刻关火,滴香油撒胡椒粉。',m:2}],
+ tp:'菠菜最后 40 秒下,煮久了会变黑发烂。粉丝要提前泡软,直接下锅煮的话得煮很久,汤都被吸干了。'},
+
+{id:'nanguanongtang',n:'南瓜浓汤',e:'🎃',cat:'soup',cu:'西式',t:35,d:1,sp:0,tl:['pot'],tg:['素菜','养胃','孩子爱吃','早餐'],
+ m:[{i:'nangua',q:600,u:'g'},{i:'niunai',q:300,u:'ml'}],s:[{i:'yangcong',q:0.5,u:'个'}],
+ se:['yan','you','heijiao','tang'],
+ nu:{k:143,p:5,f:6,c:19},
+ st:[{t:'南瓜去皮去籽切小块,洋葱切丝。',m:6},
+     {t:'锅中少油,下洋葱中火炒 4 分钟至完全变软透明发甜。这一步给汤打甜味底子。',m:5},
+     {t:'下南瓜块炒 2 分钟,加水刚好没过南瓜,煮 12 分钟至能一压就碎。',m:15},
+     {t:'用勺子或压泥器把南瓜彻底压成泥,搅进汤里(有搅拌机就打成完全顺滑的糊)。',m:4},
+     {t:'转小火倒入牛奶,慢慢搅匀。倒牛奶后不能大火,会分离出渣。',m:3},
+     {t:'加盐、少许糖和现磨黑胡椒调味,小火煮 2 分钟出锅。',m:2}],
+ tp:'洋葱炒到透明是这道汤好喝的隐藏关键,它提供了南瓜之外的甜味层次。牛奶入锅后全程小火,只能"温"不能"煮"。'},
+/* ---------- 凉菜 ---------- */
+{id:'paihuanggua',n:'拍黄瓜',e:'🥒',cat:'cold',cu:'家常',t:10,d:1,sp:1,tl:[],tg:['快手','低卡','减脂','夏天','新手友好'],
+ m:[{i:'huanggua',q:3,u:'根'}],s:[{i:'xiangcai',q:20,u:'g'}],
+ se:['suan','cu','shengchou','tang','yan','xiangyou','ganlajiao'],
+ nu:{k:67,p:2,f:3,c:5},
+ st:[{t:'黄瓜洗净,用刀面拍裂开——拍开的断面粗糙,比切片能挂住三倍的味道。',m:3},
+     {t:'拍好的黄瓜掰成小块,撒半勺盐抓匀腌 5 分钟,倒掉渗出的水。',m:6},
+     {t:'调汁:蒜末 1 勺、生抽 1 勺、醋 1.5 勺、糖半勺、香油几滴,喜欢辣加辣椒油。',m:2},
+     {t:'倒入黄瓜拌匀,撒香菜,冷藏 10 分钟更爽脆。',m:1}],
+ tp:'腌完一定要倒掉水。不倒的话拌好放五分钟就出一盘水,味道全被稀释了。'},
+
+{id:'liangbanmuer',n:'凉拌木耳',e:'🖤',cat:'cold',cu:'家常',t:30,d:1,sp:1,tl:['pot'],tg:['低卡','减脂','清爽'],
+ m:[{i:'muer',q:25,u:'g'}],s:[{i:'xiangcai',q:20,u:'g'},{i:'huluobo',q:50,u:'g'},{i:'jianjiao',q:1,u:'个'}],
+ se:['suan','cu','shengchou','tang','yan','xiangyou','baizhima'],
+ nu:{k:53,p:2,f:3,c:5},
+ st:[{t:'木耳温水泡发 20 分钟,洗净撕小朵。',m:21},
+     {t:'开水下锅焯 2 分钟——凉拌木耳必须焯透,生木耳不能吃。',m:4},
+     {t:'捞出立刻过冰水或冷水,口感才脆。彻底沥干。',m:2},
+     {t:'调汁:蒜末、生抽 1.5 勺、醋 1.5 勺、糖半勺、盐、香油、白芝麻。',m:2},
+     {t:'木耳、胡萝卜丝、尖椒圈、香菜一起拌匀。',m:1}],
+ tp:'焯 2 分钟不能省。木耳泡发时间也别超过 4 小时,常温久泡会产生毒素。'},
+
+{id:'pidandoufu',n:'皮蛋豆腐',e:'🥚',cat:'cold',cu:'家常',t:8,d:1,sp:0,tl:[],tg:['快手','高蛋白','夏天','新手友好'],
+ m:[{i:'pidan',q:2,u:'个'},{i:'doufu',q:300,u:'g'}],s:[{i:'cong',q:1,u:'根'},{i:'xiangcai',q:15,u:'g'}],
+ se:['shengchou','xiangyou','cu','suan','tang'],
+ nu:{k:167,p:12,f:11,c:2},
+ st:[{t:'嫩豆腐整块倒在盘中,用刀轻划成小块(或直接用勺子压碎成泥)。',m:3},
+     {t:'皮蛋剥壳切小块,用线切最整齐不粘刀。铺在豆腐上。',m:3},
+     {t:'调汁:生抽 2 勺、醋半勺、糖少许、蒜末、香油,浇在上面。',m:1},
+     {t:'撒葱花和香菜末。',m:1}],
+ tp:'皮蛋用棉线切最漂亮:线绕住往下压,不会把蛋黄粘散。刀切一定粘。'},
+
+{id:'majiangbocai',n:'麻酱菠菜',e:'🥬',cat:'cold',cu:'北方',t:12,d:1,sp:0,tl:['pot'],tg:['低卡','高蛋白','清爽'],
+ m:[{i:'bocai',q:500,u:'g'},{i:'zhimajiang',q:40,u:'g'}],s:[],
+ se:['shengchou','yan','tang','suan','xiangyou','baizhima','cu'],
+ nu:{k:127,p:7,f:8,c:3},
+ st:[{t:'菠菜洗净,开水锅加少许盐,下菠菜焯 40 秒变色立刻捞出。',m:5},
+     {t:'过冷水降温,挤掉水分——一定要用力挤,不挤的话麻酱全被水冲淡。切段。',m:3},
+     {t:'芝麻酱先用温水一点点调开:每次加一小勺水搅匀再加,直到变成能流动的稀糊。',m:3},
+     {t:'调好的麻酱加生抽、盐、少许糖、蒜末、几滴醋和香油拌匀。',m:1},
+     {t:'倒在菠菜上拌匀,撒白芝麻。',m:1}],
+ tp:'麻酱必须用水一点点"泄"开。一次加太多水会结块成疙瘩,再也搅不匀了。'},
+
+{id:'liangbanhaidai',n:'凉拌海带丝',e:'🌿',cat:'cold',cu:'家常',t:20,d:1,sp:1,tl:['pot'],tg:['低卡','减脂','清爽','夏天'],
+ m:[{i:'haidai',q:300,u:'g'}],s:[{i:'huluobo',q:50,u:'g'},{i:'xiangcai',q:20,u:'g'},{i:'jianjiao',q:1,u:'个'}],
+ se:['suan','cu','shengchou','tang','yan','xiangyou','baizhima'],
+ nu:{k:50,p:2,f:3,c:4},
+ st:[{t:'海带丝洗净,如果是干货需提前泡发 2 小时。',m:5},
+     {t:'开水下锅焯 5 分钟至变软(海带比想象中难煮软),捞出过冷水。',m:8},
+     {t:'胡萝卜切细丝,尖椒切圈。',m:3},
+     {t:'调汁:蒜末、生抽 1.5 勺、醋 2 勺、糖 1 勺、盐、香油,拌匀。',m:2},
+     {t:'所有材料拌匀,撒白芝麻和香菜,冷藏 15 分钟入味更好。',m:2}],
+ tp:'海带焯水时加几滴醋能更快变软。醋放得比一般凉菜多,酸味才压得住海带的腥。'},
+
+{id:'koushuiji',n:'口水鸡',e:'🍗',cat:'cold',cu:'川菜',t:45,d:2,sp:3,tl:['pot'],tg:['宴客','重口','高蛋白'],
+ m:[{i:'jitui',q:400,u:'g'},{i:'huasheng',q:20,u:'g'}],s:[{i:'cong',q:2,u:'根'},{i:'xiangcai',q:20,u:'g'}],
+ se:['you','ganlajiao','huajiao','lajiaomian','shengchou','cu','tang','suan','jiang','xiangyou','baizhima','yan','liaojiu'],
+ nu:{k:395,p:27,f:28,c:3},
+ st:[{t:'鸡腿冷水下锅,加姜片葱段和料酒,水开后转小火煮 15 分钟。',m:18},
+     {t:'关火后不要捞出,在汤里泡 10 分钟,靠余温焖熟,肉才不柴。',m:11},
+     {t:'捞出立刻放进冰水里泡 5 分钟——急速冷却让鸡皮收紧变脆,这是口水鸡的关键。',m:6},
+     {t:'做辣椒油:2 勺辣椒面加一点白芝麻,浇入烧到冒烟的 4 勺热油,滋一声激出香味。',m:4},
+     {t:'调汁:辣椒油、生抽 2 勺、醋 1 勺、糖 1 勺、蒜末、花椒粉、香油,搅匀。',m:3},
+     {t:'鸡腿去骨切块摆盘,浇汁,撒花生碎、葱花、香菜。',m:3}],
+ tp:'"煮 15 分钟 + 泡 10 分钟 + 冰水 5 分钟"这三段时间是嫩滑弹牙的全部秘密。一直煮到熟就柴了。'},
+
+{id:'liangbandoufupi',n:'凉拌豆腐皮',e:'📄',cat:'cold',cu:'家常',t:15,d:1,sp:1,tl:['pot'],tg:['高蛋白','快手','低碳水'],
+ m:[{i:'gandoufu',q:250,u:'g'}],s:[{i:'huanggua',q:1,u:'根'},{i:'xiangcai',q:20,u:'g'}],
+ se:['suan','shengchou','cu','tang','yan','xiangyou','ganlajiao','baizhima'],
+ nu:{k:207,p:14,f:13,c:2},
+ st:[{t:'干豆腐切细丝,开水焯 1 分钟去豆腥,捞出过冷水沥干。',m:6},
+     {t:'黄瓜切丝,香菜切段。',m:3},
+     {t:'调汁:蒜末、生抽 2 勺、醋 1.5 勺、糖半勺、盐、香油、辣椒油。',m:3},
+     {t:'全部拌匀,撒白芝麻。',m:2}],
+ tp:'焯水这一步别省,生豆腐皮的豆腥味很明显,焯过之后干净很多。'},
+
+{id:'liangbanfensi',n:'凉拌粉丝',e:'🍜',cat:'cold',cu:'家常',t:18,d:1,sp:2,tl:['pot'],tg:['夏天','快手','下饭'],
+ m:[{i:'fensi',q:120,u:'g'}],s:[{i:'huanggua',q:1,u:'根'},{i:'huasheng',q:20,u:'g'},{i:'xiangcai',q:20,u:'g'}],
+ se:['suan','shengchou','cu','tang','yan','xiangyou','lajiaomian','baizhima'],
+ nu:{k:213,p:3,f:8,c:30},
+ st:[{t:'粉丝开水煮 3 分钟至透明无硬芯,捞出立刻过冷水,反复冲到完全凉透。',m:6},
+     {t:'沥干水分,用剪刀剪短一些,更好拌也更好吃。',m:2},
+     {t:'黄瓜切丝,花生米压碎,香菜切段。',m:4},
+     {t:'调汁:蒜末 1 勺、生抽 2 勺、醋 2 勺、糖 1 勺、辣椒油、香油、盐。',m:3},
+     {t:'全部拌匀,撒花生碎和白芝麻,立刻吃。',m:3}],
+ tp:'粉丝必须冲到完全凉透才不会黏成一团。拌好要马上吃,放久了粉丝会把汁全吸干变咸。'},
+
+{id:'baizhuoxia',n:'白灼虾',e:'🦐',cat:'cold',cu:'粤菜',t:15,d:1,sp:0,tl:['pot'],tg:['高蛋白','低碳水','减脂','宴客','新手友好'],
+ m:[{i:'xia',q:600,u:'g'}],s:[{i:'jiang',q:5,u:'片'},{i:'cong',q:2,u:'根'}],
+ se:['shengchou','liaojiu','yan','xiangyou','cu'],
+ nu:{k:123,p:22,f:2,c:1},
+ st:[{t:'虾剪去虾枪和长须,挑出虾线,冲洗干净。',m:6},
+     {t:'锅中水加姜片、葱段、料酒和半勺盐,大火烧开。',m:3},
+     {t:'水完全沸腾时下虾,煮 90 秒至虾身变红蜷曲成 C 形,立刻捞出。',m:2},
+     {t:'捞出直接放进冰水里过 1 分钟,虾肉瞬间收紧,口感弹脆。',m:2},
+     {t:'调蘸料:生抽 2 勺、姜末、几滴醋和香油。',m:2}],
+ tp:'虾身弯成 C 形是刚好熟,弯成 O 形就是老了。90 秒 + 冰水,是白灼虾脆弹的全部技术。'},
+
+{id:'suannibairou',n:'蒜泥白肉',e:'🥓',cat:'cold',cu:'川菜',t:50,d:2,sp:2,tl:['pot'],tg:['宴客','重口','经典'],
+ m:[{i:'wuhuarou',q:400,u:'g'}],s:[{i:'huanggua',q:1,u:'根'},{i:'cong',q:2,u:'根'}],
+ se:['suan','shengchou','cu','tang','you','lajiaomian','huajiao','xiangyou','liaojiu','jiang','yan'],
+ nu:{k:493,p:17,f:48,c:2},
+ st:[{t:'五花肉整块冷水下锅,加姜片、葱段、料酒,水开后转小火煮 30 分钟。',m:33},
+     {t:'筷子能轻松插透就好了。关火在汤里泡 10 分钟。',m:11},
+     {t:'捞出放进冰水冷透——凉透的肉才能切成薄如纸的大片。',m:5},
+     {t:'切成尽可能薄的大片,铺在黄瓜丝上。',m:5},
+     {t:'调汁:蒜泥 2 勺、生抽 2 勺、醋 1 勺、糖 1 勺、辣椒油 2 勺、花椒粉、香油,浇上去。',m:3}],
+ tp:'切得薄是这道菜的一半。肉必须完全凉透、最好冷藏半小时再切,热的肉切不薄也切不整齐。'},
+
+{id:'cupaohuasheng',n:'醋泡花生',e:'🥜',cat:'cold',cu:'家常',t:15,d:1,sp:0,tl:['wok'],tg:['下酒','快手'],
+ m:[{i:'huasheng',q:150,u:'g'}],s:[{i:'cong',q:2,u:'根'},{i:'jianjiao',q:1,u:'个'}],
+ se:['cu','shengchou','tang','yan','xiangyou'],
+ nu:{k:300,p:13,f:25,c:8},
+ st:[{t:'花生米冷油下锅,小火慢炸 6 分钟——一定冷油下锅小火,热油下去外面焦了里面还是生的。',m:8},
+     {t:'听到噼啪声变密、花生表皮微微发深就捞出,摊开彻底晾凉才会脆。',m:5},
+     {t:'葱切碎,尖椒切圈。',m:2},
+     {t:'调汁:醋 3 勺、生抽 1 勺、糖 1 勺、盐少许、香油,搅到糖化开。',m:2},
+     {t:'花生凉透后和葱、尖椒一起倒入汁中拌匀,可冷藏 30 分钟更入味。',m:1}],
+ tp:'花生必须凉透再拌,热的时候拌下去会立刻回软。判断炸好没有:捞出来晾凉后咬一口是脆的就对了。'},
+
+{id:'liangbandouya',n:'凉拌豆芽',e:'🌱',cat:'cold',cu:'家常',t:12,d:1,sp:1,tl:['pot'],tg:['低卡','减脂','快手','新手友好'],
+ m:[{i:'douya',q:500,u:'g'}],s:[{i:'huluobo',q:50,u:'g'},{i:'jiucai',q:50,u:'g'}],
+ se:['suan','cu','shengchou','yan','tang','xiangyou','lajiaomian','baizhima'],
+ nu:{k:67,p:4,f:3,c:3},
+ st:[{t:'豆芽掐掉根部(可选,更干净),胡萝卜切细丝,韭菜切段。',m:5},
+     {t:'开水锅下豆芽和胡萝卜丝焯 90 秒,最后 20 秒下韭菜。',m:3},
+     {t:'全部捞出立刻过冷水,彻底沥干水分。',m:2},
+     {t:'调汁:蒜末、生抽 1.5 勺、醋 1.5 勺、盐、少许糖、香油、辣椒油,拌匀撒白芝麻。',m:2}],
+ tp:'豆芽焯 90 秒刚好断生又保持脆。生豆芽有豆腥味,焯太久又变软,这个时间是最优解。'},
+
+/* ---------- 蒸菜 ---------- */
+{id:'zhengshuidan',n:'鸡蛋羹',e:'🥚',cat:'steam',cu:'家常',t:18,d:1,sp:0,tl:['steamer'],tg:['快手','孩子爱吃','养胃','新手友好'],
+ m:[{i:'jidan',q:4,u:'个'}],s:[{i:'cong',q:1,u:'根'}],se:['yan','shengchou','xiangyou'],
+ nu:{k:100,p:8,f:7,c:1},
+ st:[{t:'鸡蛋打散,加少许盐。加入 1.5 倍体积的温水(约 40℃)——水温和比例是嫩滑的两个关键。',m:4},
+     {t:'搅匀后用筛网过滤两遍,滤掉泡沫和蛋筋,这一步决定表面平不平。',m:3},
+     {t:'倒入碗中,盖一层保鲜膜或盘子,防止水蒸气滴落打出坑。',m:1},
+     {t:'水开后上锅,中小火蒸 10 分钟。全程别用大火,大火蒸出蜂窝。',m:11},
+     {t:'出锅淋生抽、香油,撒葱花。',m:1}],
+ tp:'三个关键:温水而不是冷水或开水、1.5 倍水量、中小火加盖。做到这三点闭着眼都能蒸出镜面蛋羹。'},
+
+{id:'qingzhengluyu',n:'清蒸鲈鱼',e:'🐟',cat:'steam',cu:'粤菜',t:25,d:2,sp:0,tl:['steamer'],tg:['宴客','高蛋白','低碳水','减脂'],
+ m:[{i:'luyu',q:600,u:'g'}],s:[{i:'cong',q:3,u:'根'},{i:'jiang',q:6,u:'片'}],
+ se:['shengchou','you','liaojiu','yan','hujiaofen'],
+ nu:{k:173,p:21,f:9,c:1},
+ st:[{t:'鱼处理干净,两面各划两刀。用厨房纸把鱼身内外彻底擦干,抹少许盐和料酒腌 10 分钟。',m:12},
+     {t:'盘底垫几根葱段和姜片把鱼架起来,让蒸汽能从下面走通,鱼腹里也塞两片姜。',m:3},
+     {t:'水大滚后上锅,大火蒸 8 分钟(一斤左右的鱼)。时间到立刻端出,别回锅。',m:9},
+     {t:'倒掉盘里蒸出的腥水,丢掉垫底的葱姜,重新铺上新鲜葱丝姜丝。',m:2},
+     {t:'淋 2 勺生抽在盘边(不要直接浇鱼身),再把 2 勺烧到冒烟的热油泼在葱丝上。',m:2}],
+ tp:'两个决定性细节:蒸出来的水必须倒掉(那是腥味的来源),油必须烧到冒烟才泼(才能激出葱香)。蒸鱼宁欠不过,多一分钟肉就散了。'},
+
+{id:'suanrongfensixia',n:'蒜蓉粉丝蒸虾',e:'🦐',cat:'steam',cu:'粤菜',t:25,d:2,sp:0,tl:['steamer'],tg:['宴客','高蛋白','快手'],
+ m:[{i:'xia',q:500,u:'g'},{i:'fensi',q:60,u:'g'}],s:[{i:'cong',q:2,u:'根'}],
+ se:['suan','you','shengchou','haoyou','liaojiu','yan','tang','hujiaofen'],
+ nu:{k:240,p:19,f:10,c:15},
+ st:[{t:'粉丝温水泡 15 分钟至软,盘底铺开。',m:16},
+     {t:'虾从背部剖开(不切断)去虾线,摊开摆在粉丝上,虾肉朝上。',m:8},
+     {t:'炒蒜蓉:一半蒜末用油小火炒到微黄,关火拌入另一半生蒜末,加生抽、蚝油、糖、盐调成金银蒜。',m:5},
+     {t:'蒜蓉汁均匀铺在每只虾上。',m:2},
+     {t:'水开后大火蒸 6 分钟,出锅撒葱花,再淋一勺热油。',m:7}],
+ tp:'"金银蒜"是这道菜的灵魂:一半炒香一半生用,香味有层次。全炒了就单调,全生的太冲。'},
+
+{id:'gelizhengdan',n:'蛤蜊蒸蛋',e:'🦪',cat:'steam',cu:'家常',t:70,d:2,sp:0,tl:['steamer'],tg:['鲜味','高蛋白','低碳水'],
+ m:[{i:'geli',q:300,u:'g'},{i:'jidan',q:3,u:'个'}],s:[{i:'cong',q:1,u:'根'}],
+ se:['yan','shengchou','xiangyou','liaojiu'],
+ nu:{k:93,p:10,f:5,c:1},
+ st:[{t:'蛤蜊放淡盐水加几滴香油,静置 1 小时吐沙,搓洗干净。',m:62},
+     {t:'锅中少量水烧开,下蛤蜊煮到刚开口就捞出,煮蛤蜊的水滤净留着。',m:4},
+     {t:'蛤蜊摆在碗中。鸡蛋打散加少许盐,兑入 1.5 倍的蛤蜊水(温的),过筛两遍。',m:4},
+     {t:'蛋液倒入碗中盖保鲜膜,水开后中小火蒸 10 分钟。',m:11},
+     {t:'出锅淋生抽香油,撒葱花。',m:1}],
+ tp:'用煮蛤蜊的水代替清水兑蛋液,鲜味直接翻倍。这是这道菜比普通蒸蛋好吃的唯一原因。'},
+
+{id:'xiandanzhengroubing',n:'咸蛋蒸肉饼',e:'🥚',cat:'steam',cu:'粤菜',t:35,d:1,sp:0,tl:['steamer'],tg:['下饭','高蛋白','家常'],
+ m:[{i:'roumo',q:350,u:'g'},{i:'xiandan',q:2,u:'个'}],s:[{i:'cong',q:1,u:'根'},{i:'jiang',q:3,u:'片'}],
+ se:['shengchou','liaojiu','dianfen','xiangyou','hujiaofen','tang'],
+ nu:{k:357,p:24,f:28,c:1},
+ st:[{t:'肉末加生抽、料酒、姜末、1 勺淀粉、少许糖和胡椒粉,朝一个方向搅打 3 分钟至发黏上劲。',m:6},
+     {t:'分三次加入共 4 勺清水,每次都搅到完全吸收再加——加水是肉饼嫩而不硬的关键。',m:5},
+     {t:'肉末铺在盘中摊平,厚度不超过 2cm,用勺背压出光滑表面。',m:3},
+     {t:'咸鸭蛋取蛋黄切半埋进肉饼,蛋白切碎撒在表面。',m:3},
+     {t:'水开后大火蒸 15 分钟,出锅淋香油撒葱花。',m:16}],
+ tp:'搅打上劲 + 分次加水,是所有肉饼肉丸类的通用秘诀。肉饼摊薄一点熟得快也更嫩。'},
+
+{id:'xiangguzhengji',n:'香菇蒸鸡',e:'🍄',cat:'steam',cu:'粤菜',t:40,d:1,sp:0,tl:['steamer'],tg:['高蛋白','低碳水','家常'],
+ m:[{i:'jitui',q:500,u:'g'},{i:'xianggu',q:150,u:'g'}],s:[{i:'jiang',q:5,u:'片'},{i:'cong',q:2,u:'根'}],
+ se:['shengchou','haoyou','liaojiu','dianfen','you','yan','tang','hujiaofen'],
+ nu:{k:350,p:33,f:18,c:2},
+ st:[{t:'鸡腿去骨切块,香菇切厚片(干香菇泡发)。',m:6},
+     {t:'鸡块加生抽 2 勺、蚝油 1 勺、料酒、姜末、1 勺淀粉、半勺糖、少许油抓匀,腌 20 分钟。',m:21},
+     {t:'香菇和鸡块拌在一起,平铺在盘中,别堆太厚。',m:2},
+     {t:'水开后大火蒸 15 分钟,筷子能轻松插透即可。',m:16},
+     {t:'出锅撒葱花,喜欢的话淋一勺热油。',m:1}],
+ tp:'这是最省事的一道硬菜:腌好上锅蒸,全程不用看火。铺平别堆高,堆高了中间蒸不透。'},
+
+{id:'suanxiangzhengpaigu',n:'蒜香蒸排骨',e:'🍖',cat:'steam',cu:'粤菜',t:50,d:2,sp:0,tl:['steamer'],tg:['下饭','高蛋白','宴客'],
+ m:[{i:'paigu',q:500,u:'g'}],s:[{i:'suan',q:8,u:'瓣'},{i:'cong',q:2,u:'根'}],
+ se:['shengchou','haoyou','liaojiu','dianfen','tang','you','hujiaofen','yan'],
+ nu:{k:483,p:30,f:38,c:3},
+ st:[{t:'排骨剁小段,清水泡 30 分钟去血水,反复冲洗后彻底挤干水。',m:32},
+     {t:'加蒜末、生抽 2 勺、蚝油 1 勺、料酒、糖半勺、胡椒粉抓匀。',m:3},
+     {t:'加 1.5 勺淀粉和 1 勺油拌匀,腌 20 分钟——淀粉锁汁,蒸出来才不干。',m:21},
+     {t:'排骨平铺盘中,水开后大火蒸 20 分钟。',m:21},
+     {t:'出锅撒葱花,淋一勺热油激香。',m:1}],
+ tp:'泡水去血、挤干、裹淀粉,三步做完蒸出来的排骨才嫩。不挤干水的话淀粉挂不住,蒸出一盘汤。'},
+
+{id:'zhengnangua',n:'蒸南瓜',e:'🎃',cat:'steam',cu:'家常',t:20,d:1,sp:0,tl:['steamer'],tg:['低卡','素菜','减脂','养胃','新手友好'],
+ m:[{i:'nangua',q:600,u:'g'}],s:[],se:[],
+ nu:{k:52,p:1,f:0,c:12},
+ st:[{t:'南瓜去皮去籽,切成 1.5cm 厚的片。选老南瓜(表皮硬、颜色深)才够甜够粉。',m:6},
+     {t:'南瓜片平铺在盘子里,不要叠太多层。',m:2},
+     {t:'水开后大火蒸 12 分钟,筷子能轻松插透即可。',m:13},
+     {t:'原味直接吃,喜欢甜的可以淋一点蜂蜜。',m:1}],
+ tp:'不用加任何东西。这道菜的全部技术在于挑南瓜:表皮发白带霜、掂着沉手的老南瓜,自带甜味。每份 52 kcal,是减脂期最好的碳水来源。',
+ sb:{}},
+
+{id:'suannizhengqiezi',n:'蒜泥蒸茄子',e:'🍆',cat:'steam',cu:'家常',t:25,d:1,sp:1,tl:['steamer'],tg:['低卡','素菜','减脂','夏天'],
+ m:[{i:'qiezi',q:500,u:'g'}],s:[{i:'cong',q:1,u:'根'},{i:'xiangcai',q:15,u:'g'}],
+ se:['suan','shengchou','cu','xiangyou','you','yan','tang','lajiaomian'],
+ nu:{k:97,p:1,f:7,c:3},
+ st:[{t:'茄子对半剖开,不去皮,切面朝上放盘中。',m:3},
+     {t:'水开后大火蒸 12 分钟至完全软透,用筷子能轻松穿过。',m:13},
+     {t:'蒸好后倒掉盘里的水,用手或筷子把茄子撕成粗条。',m:3},
+     {t:'调汁:蒜末 2 勺、生抽 2 勺、醋 1 勺、糖半勺、盐、香油,喜欢辣加辣椒油。',m:3},
+     {t:'热油 2 勺烧到冒烟浇在蒜末上激香,再拌进茄子里,撒葱花香菜。',m:3}],
+ tp:'蒸茄子比红烧茄子省一半的油,热量只有三分之一。蒜要用热油激一下,生蒜的冲味会盖掉茄子的清甜。'},
+
+{id:'qingzhengcaoyu',n:'清蒸草鱼',e:'🐟',cat:'steam',cu:'家常',t:28,d:2,sp:0,tl:['steamer'],tg:['高蛋白','减脂','家常'],
+ m:[{i:'caoyu',q:700,u:'g'}],s:[{i:'cong',q:3,u:'根'},{i:'jiang',q:6,u:'片'}],
+ se:['shengchou','you','liaojiu','yan','hujiaofen'],
+ nu:{k:207,p:25,f:9,c:1},
+ st:[{t:'草鱼去鳞去内脏,把腹腔内的黑膜彻底刮净——这层黑膜是土腥味的主要来源。',m:8},
+     {t:'两面各划三刀,内外抹盐和料酒,塞入姜片,腌 12 分钟。',m:13},
+     {t:'盘底垫葱段架起鱼身,水大滚后上锅大火蒸 10 分钟。',m:11},
+     {t:'倒掉腥水,换新鲜葱姜丝,盘边淋生抽,泼冒烟的热油。',m:3}],
+ tp:'草鱼比海鱼腥,黑膜和腹内血线一定刮干净,腌的时候料酒多一点。蒸的时间比鲈鱼稍长,因为肉更厚。'},
+
+/* ---------- 主食 · 面点 ---------- */
+{id:'danchaofan',n:'蛋炒饭',e:'🍚',cat:'staple',cu:'家常',t:15,d:1,sp:0,tl:['wok'],tg:['快手','一锅出','新手友好','清冰箱'],
+ m:[{i:'mifan',q:500,u:'g'},{i:'jidan',q:3,u:'个'}],s:[{i:'cong',q:2,u:'根'}],
+ se:['yan','you','shengchou','hujiaofen','jijing'],
+ nu:{k:357,p:11,f:17,c:42},
+ st:[{t:'用隔夜冷饭最好,水分少粒粒分明。如果是新煮的饭,摊开吹凉再用。用手把饭团捏散。',m:4},
+     {t:'鸡蛋打散加少许盐。',m:1},
+     {t:'热锅热油,倒入蛋液炒散成小块,盛出一半留着最后放。',m:2},
+     {t:'锅里留一半蛋,直接倒入米饭,用铲子背不停压散翻炒 3 分钟,炒到每粒饭都跳起来。',m:4},
+     {t:'加盐、生抽、胡椒粉炒匀,倒回另一半鸡蛋和葱花,大火翻 30 秒出锅。',m:2}],
+ tp:'冷饭是第一要素,大火是第二要素。鸡蛋分两次放:先炒的那半和饭炒融在一起提供底味,后放的那半保持嫩块口感。'},
+
+{id:'yangzhouchaofan',n:'扬州炒饭',e:'🍚',cat:'staple',cu:'江浙',t:22,d:2,sp:0,tl:['wok'],tg:['一锅出','宴客','清冰箱'],
+ m:[{i:'mifan',q:500,u:'g'},{i:'jidan',q:2,u:'个'},{i:'xia',q:100,u:'g'}],
+ s:[{i:'xiangchang',q:60,u:'g'},{i:'wandou',q:60,u:'g'},{i:'huluobo',q:50,u:'g'},{i:'cong',q:2,u:'根'}],
+ se:['yan','you','shengchou','hujiaofen','liaojiu'],
+ nu:{k:443,p:18,f:21,c:43},
+ st:[{t:'虾仁用盐和料酒腌 5 分钟,香肠和胡萝卜切小丁,豌豆用开水焯 2 分钟。',m:8},
+     {t:'鸡蛋打散炒成小块盛出。',m:2},
+     {t:'热油下虾仁炒 1 分钟变红盛出。',m:2},
+     {t:'下香肠丁炒出油,加胡萝卜丁炒 2 分钟。',m:3},
+     {t:'倒入冷饭,大火压散翻炒 3 分钟,加盐、生抽、胡椒粉。',m:4},
+     {t:'倒回鸡蛋、虾仁、豌豆,撒葱花大火翻 40 秒出锅。',m:2}],
+ tp:'配料丰俭由人,但要点不变:每样单独先炒好再合并,而不是一锅乱炒。这样每种材料的口感都在。'},
+
+{id:'fanqiejidanmian',n:'西红柿鸡蛋面',e:'🍜',cat:'staple',cu:'家常',t:20,d:1,sp:0,tl:['pot','wok'],tg:['快手','一碗端','新手友好'],
+ m:[{i:'miantiao',q:250,u:'g'},{i:'xihongshi',q:3,u:'个'},{i:'jidan',q:2,u:'个'}],s:[{i:'cong',q:1,u:'根'},{i:'xiaobaicai',q:100,u:'g'}],
+ se:['yan','you','shengchou','tang','hujiaofen','xiangyou'],
+ nu:{k:442,p:14,f:13,c:58},
+ st:[{t:'西红柿去皮切块,鸡蛋打散。',m:5},
+     {t:'热油炒鸡蛋成块盛出,补油下西红柿中火炒 4 分钟至完全出沙。',m:6},
+     {t:'加 4 碗水烧开,加盐、生抽、半勺糖调味,倒回鸡蛋。',m:4},
+     {t:'另锅烧开水煮面条(按包装时间),最后 30 秒下青菜。',m:5},
+     {t:'面条捞进碗里,浇上番茄蛋汤,滴香油撒葱花。',m:1}],
+ tp:'面另锅煮、汤另锅做,最后合并。面直接下汤锅会把汤搅成糊,面也容易糊烂。'},
+
+{id:'yangchunmian',n:'阳春面',e:'🍜',cat:'staple',cu:'江浙',t:15,d:1,sp:0,tl:['pot'],tg:['快手','一碗端','极简'],
+ m:[{i:'miantiao',q:250,u:'g'}],s:[{i:'cong',q:3,u:'根'},{i:'xiaobaicai',q:100,u:'g'}],
+ se:['shengchou','laochou','you','yan','tang','xiangyou','hujiaofen','jijing'],
+ nu:{k:370,p:8,f:9,c:57},
+ st:[{t:'熬葱油:锅中 3 勺油,小火下葱段慢炸 5 分钟至葱变焦黄,捞出葱留油。这罐葱油是这碗面的全部。',m:7},
+     {t:'碗底调底料:生抽 2 勺、老抽几滴、盐少许、糖少许、一勺葱油。',m:2},
+     {t:'锅中水烧开煮面,最后 30 秒下青菜。',m:5},
+     {t:'舀一勺煮面的热汤冲开碗底的调料。',m:1},
+     {t:'面条捞进碗里,铺上青菜,撒葱花和炸过的葱段,滴香油。',m:1}],
+ tp:'阳春面没有浇头,全靠葱油和酱油的底味。所以葱一定要炸到焦黄出香,这是唯一的变量。'},
+
+{id:'dalumian',n:'打卤面',e:'🍜',cat:'staple',cu:'北方',t:30,d:2,sp:0,tl:['pot','wok'],tg:['一碗端','下饭','家常'],
+ m:[{i:'miantiao',q:250,u:'g'},{i:'roumo',q:150,u:'g'},{i:'jidan',q:1,u:'个'}],
+ s:[{i:'muer',q:10,u:'g'},{i:'xianggu',q:80,u:'g'},{i:'huanggua',q:1,u:'根'}],
+ se:['you','shengchou','laochou','haoyou','dianfen','yan','tang','suan','jiang','cong','hujiaofen'],
+ nu:{k:517,p:19,f:21,c:58},
+ st:[{t:'木耳泡发切丝,香菇切片,黄瓜切丝备用。',m:8},
+     {t:'热油下肉末炒散炒出油,加姜末蒜末炒香。',m:4},
+     {t:'下香菇和木耳炒 2 分钟,加生抽 2 勺、老抽半勺、蚝油 1 勺炒匀。',m:3},
+     {t:'加 3 碗水烧开,加盐和少许糖,中火煮 5 分钟。',m:6},
+     {t:'分两次淋入淀粉水勾芡,收成能挂住面条的浓稠度,转小火淋蛋液推成蛋花。',m:4},
+     {t:'另锅煮面,捞出后浇卤,配黄瓜丝。',m:5}],
+ tp:'卤要勾得够稠才叫"卤",稀了就是汤面。分两次勾芡,每次等汤重新沸腾。'},
+
+{id:'zhajiangmian',n:'炸酱面',e:'🍜',cat:'staple',cu:'北京',t:35,d:2,sp:0,tl:['pot','wok'],tg:['一碗端','经典','下饭'],
+ m:[{i:'miantiao',q:250,u:'g'},{i:'roumo',q:200,u:'g'}],s:[{i:'huanggua',q:1,u:'根'},{i:'douya',q:100,u:'g'},{i:'cong',q:2,u:'根'}],
+ se:['doubanjiang','shengchou','laochou','tang','you','liaojiu','jiang','suan','hujiaofen'],
+ nu:{k:560,p:20,f:24,c:58},
+ st:[{t:'肉末最好用带点肥的,切成小丁比绞肉口感更好。黄瓜切丝,豆芽焯熟。',m:8},
+     {t:'酱料先兑开:3 勺黄豆酱(或豆瓣酱)加 3 勺水搅匀,这样不容易炒糊。',m:2},
+     {t:'锅中多油,下肉末中火炒 5 分钟至完全出油、微微焦香。',m:6},
+     {t:'加姜末葱白炒香,倒入兑好的酱,转小火不停搅拌炒 8 分钟。',m:9},
+     {t:'加 1 勺糖、少许生抽和老抽,继续小火炒到油和酱分离、酱色发亮,这叫"炸透"。',m:5},
+     {t:'另锅煮面捞出(过冷水更筋道),配酱、黄瓜丝、豆芽拌着吃。',m:5}],
+ tp:'酱一定要小火慢炸到"出油",看到油从酱里渗出来、颜色变深发亮才算成功。心急用大火,酱就苦了。',
+ sb:{doubanjiang:'正宗用黄豆酱 + 甜面酱各一半,豆瓣酱会偏辣'}},
+
+{id:'congyoubanmian',n:'葱油拌面',e:'🍜',cat:'staple',cu:'江浙',t:22,d:1,sp:0,tl:['pot','wok'],tg:['快手','极简','一碗端'],
+ m:[{i:'miantiao',q:250,u:'g'},{i:'dacong',q:150,u:'g'}],s:[{i:'xiapi',q:10,u:'g'}],
+ se:['you','shengchou','laochou','tang','yan'],
+ nu:{k:453,p:8,f:17,c:57},
+ st:[{t:'大葱切长段,葱白葱绿分开。',m:4},
+     {t:'锅中倒 5 勺油,冷油下葱白,最小火慢慢炸 8 分钟。',m:9},
+     {t:'葱白变金黄后下葱绿,继续小火炸 4 分钟至全部焦干,捞出葱段留油。',m:5},
+     {t:'调酱汁:2 勺生抽、半勺老抽、1 勺糖,倒进葱油锅里小火煮 1 分钟到糖化开。',m:2},
+     {t:'另锅煮面,捞出后倒入葱油酱汁拌匀,撒炸香的虾皮和葱段。',m:5}],
+ tp:'全程最小火,耐心 12 分钟。葱油的香味完全来自葱的缓慢脱水焦化,火大了只有焦味没有香味。'},
+
+{id:'niuroumian',n:'牛肉面',e:'🍜',cat:'staple',cu:'家常',t:110,d:3,sp:1,tl:['pot'],tg:['一碗端','宴客','冬天'],
+ m:[{i:'miantiao',q:250,u:'g'},{i:'niunan',q:300,u:'g'}],s:[{i:'bailuobo',q:200,u:'g'},{i:'xiaobaicai',q:100,u:'g'},{i:'cong',q:2,u:'根'}],
+ se:['you','doubanjiang','shengchou','laochou','liaojiu','bingtang','bajiao','guipi','xiangye','huajiao','jiang','suan','yan','ganlajiao'],
+ nu:{k:597,p:25,f:26,c:58},
+ st:[{t:'牛腩切块,冷水下锅加姜料酒焯 5 分钟,撇沫捞出冲净。',m:10},
+     {t:'热油下 10g 冰糖炒糖色,下牛肉块翻炒上色。',m:5},
+     {t:'加 1 勺豆瓣酱、姜蒜、八角桂皮香叶花椒干辣椒,炒 2 分钟出香。',m:3},
+     {t:'加生抽、老抽、料酒,加开水没过牛肉三指,大火烧开转小火炖 75 分钟。',m:77},
+     {t:'下白萝卜块再炖 20 分钟,加盐调味。',m:21},
+     {t:'另锅煮面,最后 30 秒下青菜。面条盛碗,浇牛肉和汤,撒葱花。',m:6}],
+ tp:'汤要一次加够水,中途加水会让肉紧缩、汤味变淡。炖好后放凉再回锅热一次,味道更融合。'},
+
+{id:'pidanshourouzhou',n:'皮蛋瘦肉粥',e:'🍚',cat:'staple',cu:'粤菜',t:70,d:2,sp:0,tl:['pot'],tg:['养胃','早餐','一碗端'],
+ m:[{i:'mifan',q:120,u:'g'},{i:'zhurou',q:150,u:'g'},{i:'pidan',q:2,u:'个'}],s:[{i:'cong',q:2,u:'根'},{i:'jiang',q:3,u:'片'}],
+ se:['yan','shengchou','xiangyou','dianfen','hujiaofen','you'],
+ nu:{k:292,p:19,f:8,c:32},
+ st:[{t:'大米洗净,加半勺油和几滴水拌匀,冷冻 30 分钟——冻过的米粒一煮就开花,能省一半时间。',m:32},
+     {t:'猪肉切丝,加盐、生抽、淀粉、少许油抓匀腌 15 分钟。',m:16},
+     {t:'锅中加 8 倍水烧开,下冻好的米和姜丝,大火煮开转小火煮 30 分钟,期间搅几次防粘底。',m:32},
+     {t:'粥变浓稠后下一个切碎的皮蛋一起煮 5 分钟(让它化进粥里增香)。',m:6},
+     {t:'下肉丝,搅散煮 3 分钟至变白。',m:4},
+     {t:'加第二个皮蛋的块状,加盐、胡椒粉调味,撒葱花滴香油。',m:2}],
+ tp:'两个提速秘诀:米先冷冻、水一次加够 8 倍。皮蛋分两次放,一个化进粥里给底味,一个保留块状口感。'},
+
+{id:'xiaominanguazhou',n:'小米南瓜粥',e:'🎃',cat:'staple',cu:'家常',t:40,d:1,sp:0,tl:['pot'],tg:['养胃','早餐','素菜','新手友好'],
+ m:[{i:'xiaomi',q:100,u:'g'},{i:'nangua',q:400,u:'g'}],s:[{i:'hongzao',q:5,u:'颗'}],
+ se:['bingtang'],
+ nu:{k:155,p:4,f:1,c:32},
+ st:[{t:'小米淘洗干净,南瓜去皮切小块。',m:5},
+     {t:'锅中加 8 倍水烧开,下小米和南瓜块。',m:3},
+     {t:'大火烧开后转小火煮 25 分钟,期间搅动几次防止粘底。',m:26},
+     {t:'南瓜煮化后用勺子压碎搅进粥里,加红枣煮 5 分钟。',m:6},
+     {t:'喜欢甜的加少量冰糖,不加也很甜。',m:1}],
+ tp:'南瓜本身很甜,基本不用加糖。想更绵密就多压几下让南瓜完全化开,粥的颜色会变成金黄色。'},
+
+{id:'jiucaihezi',n:'韭菜盒子',e:'🥟',cat:'staple',cu:'北方',t:60,d:3,sp:0,tl:['wok'],tg:['早餐','宴客','面点'],
+ m:[{i:'mianfen',q:300,u:'g'},{i:'jiucai',q:300,u:'g'},{i:'jidan',q:3,u:'个'}],s:[{i:'fensi',q:40,u:'g'},{i:'xiapi',q:10,u:'g'}],
+ se:['yan','you','xiangyou','shengchou','hujiaofen'],
+ nu:{k:567,p:20,f:20,c:73},
+ st:[{t:'和面:300g 面粉加 170ml 温水(约 55℃)和成软面团,盖湿布醒 30 分钟。温水和面出来的皮软而不硬。',m:33},
+     {t:'鸡蛋炒成碎块放凉。粉丝泡软剪碎。',m:6},
+     {t:'韭菜切碎,和鸡蛋、粉丝、虾皮混合,加盐、香油、生抽、胡椒粉拌匀。',m:5},
+     {t:'关键:盐和香油要在包之前才拌进去。提前放盐韭菜会立刻出水,馅就散了。',m:1},
+     {t:'面团分成 6 份,擦成薄圆片,放馅对折捏紧边缘,可以用叉子压花边。',m:8},
+     {t:'平底锅少油,中小火烙 3 分钟一面,翻面再烙 3 分钟至两面金黄鼓起。',m:8}],
+ tp:'馅料出水是韭菜盒子最常见的失败。拌馅、包、下锅要连续完成,盐最后放。'},
+
+{id:'congyoubing',n:'葱油饼',e:'🫓',cat:'staple',cu:'家常',t:55,d:3,sp:0,tl:['wok'],tg:['早餐','面点','素菜'],
+ m:[{i:'mianfen',q:300,u:'g'},{i:'cong',q:100,u:'g'}],s:[],
+ se:['yan','you','wuxiangfen'],
+ nu:{k:510,p:11,f:18,c:73},
+ st:[{t:'和面:面粉加 180ml 温水搅成絮状,揉成光滑面团,盖保鲜膜醒 30 分钟。',m:35},
+     {t:'做油酥:3 勺面粉加 1 小勺盐、少许五香粉,浇入 4 勺烧热的油,搅成糊状。',m:4},
+     {t:'醒好的面团擦成大薄片(越薄层数越多),均匀抹上油酥,撒满葱花。',m:5},
+     {t:'从一边卷成长条,再把长条盘成螺旋状的饼胚,压扁。',m:4},
+     {t:'饼胚醒 10 分钟再擦成薄饼——不醒直接擦会回缩,层次也会被压死。',m:11},
+     {t:'平底锅中小火,少油,下饼烙 3 分钟至金黄起层,翻面再烙 3 分钟。出锅趁热用手把饼捏松,层次自己就散开了。',m:8}],
+ tp:'起层的三个关键:油酥要用热油烫面粉、面片擦得越薄越好、卷起后一定要再醒 10 分钟。'},
+
+{id:'jianjiaozi',n:'煎饺',e:'🥟',cat:'staple',cu:'家常',t:40,d:2,sp:0,tl:['wok'],tg:['早餐','孩子爱吃','一锅出'],
+ m:[{i:'jiaozipi',q:300,u:'g'},{i:'roumo',q:250,u:'g'},{i:'baicai',q:200,u:'g'}],s:[{i:'cong',q:2,u:'根'},{i:'jiang',q:3,u:'片'}],
+ se:['yan','shengchou','xiangyou','you','hujiaofen','liaojiu','dianfen'],
+ nu:{k:610,p:24,f:28,c:63},
+ st:[{t:'白菜切碎,撒一勺盐抓匀腌 10 分钟,用手用力挤干水分。',m:12},
+     {t:'肉末加生抽、料酒、姜末、胡椒粉,朝一个方向搅打上劲,分次加 3 勺清水搅进去。',m:6},
+     {t:'拌入挤干的白菜和葱花,加盐和香油拌匀成馅。',m:3},
+     {t:'包饺子,收口一定捏紧,煎的时候才不会漏。',m:10},
+     {t:'平底锅热油,饺子摆一圈中火煎 2 分钟至底部金黄。',m:3},
+     {t:'倒入半碗淀粉水(水里加半勺淀粉),立刻盖盖中火焖 6 分钟。',m:7},
+     {t:'水快干时开盖,转中大火再煎 1 分钟至底部酥脆,如果加了淀粉水会形成一层冰花。',m:2}],
+ tp:'煎饺的公式是"先煎、后焖、再煎"。加了淀粉的水收干后会结成一片薄脆的冰花,这是煎饺和水饺的分界线。'},
+
+{id:'jidanguanbing',n:'鸡蛋灌饼',e:'🫓',cat:'staple',cu:'河南',t:45,d:3,sp:0,tl:['wok'],tg:['早餐','面点'],
+ m:[{i:'mianfen',q:250,u:'g'},{i:'jidan',q:3,u:'个'}],s:[{i:'shengcai',q:60,u:'g'},{i:'xiangchang',q:60,u:'g'}],
+ se:['yan','you','shengchou','doubanjiang','wuxiangfen'],
+ nu:{k:487,p:16,f:19,c:62},
+ st:[{t:'面粉加 140ml 温水和成光滑面团,盖布醒 30 分钟。',m:33},
+     {t:'做油酥:2 勺面粉加少许盐和五香粉,加 3 勺热油调成糊。',m:3},
+     {t:'面团分 3 份,每份擦成薄片,抹油酥后卷起再盘成团,压扁擦成薄饼。',m:6},
+     {t:'平底锅少油,中火下饼烙 1.5 分钟,饼会鼓起气泡形成夹层。',m:2},
+     {t:'翻面,在鼓起处用筷子戳个小口,把打散的鸡蛋液灌进去,晃平。',m:2},
+     {t:'继续烙 1.5 分钟,翻面再烙 1 分钟至两面金黄。',m:3},
+     {t:'刷酱、夹生菜和香肠,卷起来吃。',m:2}],
+ tp:'能不能灌进蛋液,全看饼在锅里有没有鼓起分层。油酥抹匀 + 中火,饼才会自己鼓成气球。'},
+
+{id:'chaoniangao',n:'炒年糕',e:'🍥',cat:'staple',cu:'江浙',t:22,d:1,sp:1,tl:['wok'],tg:['快手','一锅出','孩子爱吃'],
+ m:[{i:'niangao',q:400,u:'g'},{i:'baocai',q:200,u:'g'},{i:'zhurou',q:100,u:'g'}],s:[{i:'huluobo',q:50,u:'g'},{i:'cong',q:2,u:'根'}],
+ se:['you','shengchou','laochou','haoyou','tang','yan','dianfen','suan'],
+ nu:{k:360,p:11,f:13,c:43},
+ st:[{t:'年糕片用温水泡 10 分钟至变软(硬年糕要泡久一点),沥干。',m:11},
+     {t:'猪肉切丝上浆腌 10 分钟,包菜和胡萝卜切丝。',m:10},
+     {t:'热油炒肉丝至变白盛出。',m:2},
+     {t:'下蒜末、胡萝卜和包菜炒 2 分钟至软。',m:3},
+     {t:'下年糕片,加生抽、少许老抽、1 勺蚝油、半勺糖和小半碗水,中火炒 4 分钟至年糕软糯。',m:5},
+     {t:'倒回肉丝,加盐调味,撒葱花出锅。',m:2}],
+ tp:'年糕一定要先泡软,不泡的话炒的时候会粘锅粘成一团。炒的时候加点水,年糕才不会干硬。'},
+
+{id:'danbaofan',n:'蛋包饭',e:'🍳',cat:'staple',cu:'日式',t:25,d:3,sp:0,tl:['wok'],tg:['孩子爱吃','一锅出','宴客'],
+ m:[{i:'mifan',q:400,u:'g'},{i:'jidan',q:4,u:'个'}],s:[{i:'xiangchang',q:80,u:'g'},{i:'yangcong',q:0.5,u:'个'},{i:'wandou',q:50,u:'g'}],
+ se:['fanqiejiang','you','yan','shengchou','hujiaofen','tang'],
+ nu:{k:400,p:14,f:22,c:35},
+ st:[{t:'香肠和洋葱切小丁,豌豆焯熟。',m:5},
+     {t:'热油炒洋葱至透明,下香肠丁炒香,加豌豆。',m:3},
+     {t:'倒入米饭炒散,加 3 勺番茄酱、盐、少许糖和胡椒粉炒匀成红色炒饭,盛出装碗定型。',m:5},
+     {t:'鸡蛋打散过筛(过筛后蛋皮才光滑无斑),加少许盐。',m:3},
+     {t:'不粘锅刷薄油,小火倒入蛋液,晃匀铺满锅底,等表面将凝未凝时关火。',m:3},
+     {t:'把定型的炒饭倒在蛋皮中央,用铲子把两边蛋皮折过来包住,倒扣进盘子。',m:3},
+     {t:'表面挤番茄酱。',m:1}],
+ tp:'蛋皮要在"将凝未凝"时关火,这时它还有黏性能包住饭,又不会破。全熟的蛋皮一折就裂。'},
+
+/* ---------- 早餐 ---------- */
+{id:'jiandantusi',n:'煎蛋吐司',e:'🍞',cat:'breakfast',cu:'西式',t:10,d:1,sp:0,tl:['wok'],tg:['早餐','快手','新手友好'],
+ m:[{i:'tusi',q:4,u:'片'},{i:'jidan',q:3,u:'个'}],s:[{i:'shengcai',q:40,u:'g'},{i:'xihongshi',q:1,u:'个'}],
+ se:['yan','you','heijiao'],
+ nu:{k:243,p:10,f:12,c:23},
+ st:[{t:'平底锅小火,少油,打入鸡蛋。',m:1},
+     {t:'想要溏心蛋:盖上锅盖小火 2 分半,靠蒸汽把蛋白上层熟透,蛋黄还是流心。',m:3},
+     {t:'吐司放另一个锅或烤面包机里烤 2 分钟至微脆。',m:3},
+     {t:'吐司上铺生菜和西红柿片,放煎蛋,撒盐和现磨黑胡椒。',m:2}],
+ tp:'煎蛋盖锅盖是最简单的溏心技巧:小火 + 盖盖 2 分半,蛋白全熟蛋黄流心,几乎不会失手。'},
+
+{id:'yanmainiunaiwan',n:'燕麦牛奶碗',e:'🥣',cat:'breakfast',cu:'西式',t:8,d:1,sp:0,tl:['pot'],tg:['早餐','快手','减脂','新手友好'],
+ m:[{i:'yanmai',q:90,u:'g'},{i:'niunai',q:500,u:'ml'}],s:[{i:'hongzao',q:20,u:'g'},{i:'baizhima',q:5,u:'g'}],
+ se:['fengmi'],
+ nu:{k:210,p:9,f:7,c:28},
+ st:[{t:'锅中倒入牛奶,小火加热到边缘冒小泡,不要煮沸。',m:3},
+     {t:'下燕麦片,小火煮 3 分钟,不停搅拌至变稠。',m:4},
+     {t:'红枣去核切碎拌进去。',m:1},
+     {t:'盛碗,撒白芝麻,想甜就加一勺蜂蜜。',m:1}],
+ tp:'牛奶不要煮沸,沸了会有奶皮和腥味。想更快就用即食燕麦,热牛奶冲泡焖 3 分钟就行。'},
+
+{id:'huotuisanmingzhi',n:'火腿三明治',e:'🥪',cat:'breakfast',cu:'西式',t:12,d:1,sp:0,tl:['wok'],tg:['早餐','快手','带饭'],
+ m:[{i:'tusi',q:6,u:'片'},{i:'xiangchang',q:90,u:'g'},{i:'jidan',q:2,u:'个'}],s:[{i:'shengcai',q:60,u:'g'},{i:'xihongshi',q:1,u:'个'}],
+ se:['yan','you','heijiao'],
+ nu:{k:350,p:15,f:15,c:35},
+ st:[{t:'平底锅不放油,把吐司片两面各烙 1 分钟至微微焦香。',m:3},
+     {t:'同一锅煎香肠片(或培根)至边缘焦脆,盛出。',m:3},
+     {t:'用锅里剩的油煎鸡蛋,可以打散摊成蛋饼更好夹。',m:3},
+     {t:'吐司上依次铺生菜、西红柿片、蛋饼、香肠,撒盐和黑胡椒,盖上另一片。',m:2},
+     {t:'对角切开,断面更好看也更好拿。',m:1}],
+ tp:'吐司先干烙一下,能形成一层脆壳,夹了西红柿和生菜也不会很快变湿软。'},
+
+{id:'kuaishoujidanbing',n:'快手鸡蛋饼',e:'🍳',cat:'breakfast',cu:'家常',t:15,d:1,sp:0,tl:['wok'],tg:['早餐','快手','新手友好'],
+ m:[{i:'mianfen',q:150,u:'g'},{i:'jidan',q:3,u:'个'}],s:[{i:'niunai',q:100,u:'ml'},{i:'cong',q:2,u:'根'},{i:'huluobo',q:40,u:'g'}],
+ se:['yan','you','hujiaofen','xiangyou'],
+ nu:{k:325,p:13,f:12,c:37},
+ st:[{t:'面粉加鸡蛋、牛奶和 80ml 清水,搅成能流动的稀面糊(像酸奶那样的稠度)。',m:4},
+     {t:'搅到完全没有面粉颗粒,静置 5 分钟让面粉充分吸水。',m:6},
+     {t:'拌入葱花、胡萝卜细丝、盐和胡椒粉。',m:2},
+     {t:'平底锅刷薄油,小火舀一勺面糊,快速转动锅子摊成圆薄饼。',m:2},
+     {t:'底面凝固后翻面,再烙 40 秒即可。',m:2}],
+ tp:'面糊的稠度决定一切:能顺畅流动、勺子舀起会连成线就对了。太稠摊不开,太稀会散。'},
+
+{id:'baizhouxiandan',n:'白粥配咸蛋',e:'🍚',cat:'breakfast',cu:'家常',t:50,d:1,sp:0,tl:['pot'],tg:['早餐','养胃','极简','新手友好'],
+ m:[{i:'mifan',q:120,u:'g'},{i:'xiandan',q:2,u:'个'}],s:[{i:'zicai',q:5,u:'g'}],
+ se:['yan','xiangyou'],
+ nu:{k:207,p:7,f:5,c:30},
+ st:[{t:'大米淘净,加半勺油拌匀(让米粒更容易开花)。',m:3},
+     {t:'锅中加 10 倍水烧开,下米,大火煮开后转小火。',m:5},
+     {t:'小火煮 35 分钟,期间搅动 3–4 次防止粘底。',m:36},
+     {t:'煮到米粒开花、汤汁浓稠发白即可,关火再焖 5 分钟。',m:6},
+     {t:'咸鸭蛋切开配粥,撒点紫菜碎。',m:2}],
+ tp:'水米比例 10:1,一次加够。中途加水会让粥变"清汤挂面",米油出不来。'},
+
+{id:'xiangchangdanjuan',n:'香肠鸡蛋卷',e:'🌭',cat:'breakfast',cu:'家常',t:12,d:2,sp:0,tl:['wok'],tg:['早餐','快手','高蛋白','低碳水'],
+ m:[{i:'jidan',q:4,u:'个'},{i:'xiangchang',q:80,u:'g'}],s:[{i:'yangcong',q:0.3,u:'个'},{i:'cong',q:1,u:'根'}],
+ se:['yan','you','hujiaofen'],
+ nu:{k:230,p:12,f:18,c:2},
+ st:[{t:'香肠和洋葱切小丁,葱切花。鸡蛋打散加盐和胡椒粉。',m:4},
+     {t:'平底锅少油,炒香肠和洋葱丁 2 分钟盛出。',m:3},
+     {t:'锅刷薄油,小火倒入三分之一蛋液摊成薄层,撒一层馅料。',m:2},
+     {t:'蛋液将凝时从一端卷起,推到锅边,再倒入下一份蛋液,让新蛋液流到卷底连上。',m:2},
+     {t:'重复卷两次,最后卷成一个厚蛋卷,切段摆盘。',m:2}],
+ tp:'每次倒新蛋液都要让它流到已卷好的蛋卷底部,这样才能粘成一体不散开。全程小火。'},
+
+/* ---------- 烤箱 · 空气炸锅 ---------- */
+{id:'kaojichi',n:'蜜汁烤鸡翅',e:'🍗',cat:'bake',cu:'家常',t:60,d:1,sp:0,tl:['oven'],tg:['宴客','孩子爱吃','高蛋白','免看火'],
+ m:[{i:'jichi',q:600,u:'g'}],s:[{i:'baizhima',q:10,u:'g'}],
+ se:['shengchou','haoyou','fengmi','liaojiu','wuxiangfen','suan','jiang','yan','heijiao','you'],
+ nu:{k:417,p:34,f:26,c:3},
+ st:[{t:'鸡翅两面各划两刀到骨头,方便入味和熟透。',m:5},
+     {t:'调腌料:生抽 3 勺、蚝油 1 勺、蜂蜜 2 勺、料酒 1 勺、蒜末、姜末、五香粉、黑胡椒。',m:4},
+     {t:'鸡翅和腌料抓匀,装袋冷藏腌 4 小时以上(隔夜最好)。腌够时间是好吃的唯一变量。',m:5},
+     {t:'烤盘铺锡纸,鸡翅摊开摆好互不重叠,烤箱 200℃ 预热 10 分钟。',m:12},
+     {t:'200℃ 烤 20 分钟。',m:20},
+     {t:'取出翻面,刷一层腌料汁和蜂蜜,再烤 12 分钟至表面焦糖色。',m:14}],
+ tp:'腌 4 小时以上是这道菜的全部秘诀,其他都是次要的。中途刷蜜要在后半程,前期刷会烤焦发苦。'},
+
+{id:'kongqizhaguoshutiao',n:'空气炸锅薯条',e:'🍟',cat:'bake',cu:'西式',t:35,d:1,sp:0,tl:['airfryer'],tg:['孩子爱吃','素菜','免看火'],
+ m:[{i:'tudou',q:600,u:'g'}],s:[],se:['you','yan','heijiao','wuxiangfen'],
+ nu:{k:200,p:4,f:5,c:33},
+ st:[{t:'土豆削皮切 1cm 粗条,粗细尽量一致才能同时熟。',m:6},
+     {t:'切好的薯条泡冷水 15 分钟,洗掉表面淀粉,这样才不会粘连。',m:16},
+     {t:'开水下锅焯 3 分钟至外层微软,捞出。',m:5},
+     {t:'用厨房纸把薯条彻底擦干,拌入 1 勺油、盐、黑胡椒。擦干是脆的前提。',m:4},
+     {t:'空气炸锅 200℃ 炸 12 分钟,中途拉出摇一次篮子。',m:12},
+     {t:'再 200℃ 炸 5 分钟至金黄酥脆。',m:5}],
+ tp:'"泡水去淀粉 + 焯水 + 擦干 + 两段炸"四步都做到,空气炸锅能做出接近油炸的脆度。少任何一步都会发软。'},
+
+{id:'kaonangua',n:'烤南瓜',e:'🎃',cat:'bake',cu:'西式',t:45,d:1,sp:0,tl:['oven'],tg:['素菜','减脂','免看火','孩子爱吃'],
+ m:[{i:'nangua',q:700,u:'g'}],s:[{i:'baizhima',q:5,u:'g'}],se:['you','yan','fengmi','heijiao'],
+ nu:{k:117,p:1,f:5,c:18},
+ st:[{t:'南瓜去籽,不用去皮(烤过的皮很软能吃),切成 1.5cm 厚的月牙片。',m:6},
+     {t:'南瓜片拌入 1 勺油、少许盐和黑胡椒,让每片都薄薄裹上一层。',m:3},
+     {t:'烤盘铺锡纸,南瓜单层摊开不重叠。烤箱 200℃ 预热。',m:11},
+     {t:'200℃ 烤 20 分钟。',m:20},
+     {t:'取出翻面刷一层蜂蜜,再烤 8 分钟至边缘焦糖化。撒白芝麻。',m:9}],
+ tp:'南瓜一定单层摊开,叠在一起就是蒸南瓜而不是烤南瓜。边缘微焦的那点焦糖味是这道菜的重点。'},
+
+{id:'jimihua',n:'空气炸锅鸡米花',e:'🍗',cat:'bake',cu:'西式',t:40,d:2,sp:0,tl:['airfryer'],tg:['孩子爱吃','高蛋白','免看火'],
+ m:[{i:'jixiong',q:400,u:'g'},{i:'jidan',q:1,u:'个'}],s:[{i:'mianfen',q:60,u:'g'}],
+ se:['yan','shengchou','liaojiu','hujiaofen','wuxiangfen','dianfen','you','heijiao'],
+ nu:{k:302,p:29,f:10,c:18},
+ st:[{t:'鸡胸切 2cm 见方的块,加盐、生抽、料酒、胡椒粉、五香粉抓匀腌 20 分钟。',m:22},
+     {t:'裹粉:鸡块先蘸蛋液,再放进面粉和淀粉各半的混合粉里,用手抓紧压实。',m:6},
+     {t:'裹好的鸡块静置 5 分钟让粉返潮贴牢,再抓一次形成粗糙的鳞片状外壳。',m:6},
+     {t:'每块喷一层薄油(或用手抹匀),这一步决定成品是金黄还是发白。',m:3},
+     {t:'空气炸锅 190℃ 炸 12 分钟,中途摇一次。',m:12},
+     {t:'翻面再炸 5 分钟至金黄酥脆。',m:5}],
+ tp:'裹粉后静置返潮再抓一次,能形成不规则的酥壳,这是外脆的关键。喷油不能省,不喷油的空气炸锅出品是白色的、口感像烤箱烘的。'}
+,
+/* ---------- 覆盖度补充批次 ----------
+   目的:① 让每个「常用」食材都至少是 4 道菜的主料
+        ② 消灭"勾了也没菜"的食材
+   ------------------------------------------------------------------ */
+
+{id:'shangtangwawacai',n:'上汤娃娃菜',e:'🥬',cat:'soup',cu:'粤菜',t:20,d:2,sp:0,tl:['pot'],tg:['宴客','低卡','素菜','冬天'],
+ m:[{i:'wawacai',q:500,u:'g'},{i:'pidan',q:2,u:'个'}],s:[{i:'xiandan',q:1,u:'个'},{i:'suan',q:6,u:'瓣'},{i:'cong',q:1,u:'根'}],
+ se:['you','yan','shengchou','jijing','hujiaofen'],
+ nu:{k:133,p:7,f:10,c:4},
+ st:[{t:'娃娃菜纵向切成四瓣,不要切断根部,这样煮了不散。',m:4},
+     {t:'皮蛋和咸鸭蛋切小块。咸蛋的蛋黄捏碎,蛋白切丁,分开放。',m:4},
+     {t:'锅中油,小火下蒜末炒到微黄,下咸蛋黄碎压散炒 40 秒——炒出的蛋黄油是"上汤"金色的来源。',m:3},
+     {t:'加 5 碗开水,下皮蛋块和咸蛋白,中火煮 5 分钟让汤变浓白。',m:6},
+     {t:'下娃娃菜煮 5 分钟至变软,加盐、生抽和胡椒粉调味,撒葱花。',m:6}],
+ tp:'"上汤"不是高汤,是靠皮蛋和咸蛋黄煮出来的。咸蛋黄一定要用油炒散,汤才会金黄浓香,不炒的话只是一锅咸水。'},
+
+{id:'xilanhuajixiong',n:'西兰花炒鸡胸',e:'🥦',cat:'stirfry',cu:'家常',t:22,d:1,sp:0,tl:['pot','wok'],tg:['减脂','增肌','高蛋白','低碳水','快手'],
+ m:[{i:'xilanhua',q:350,u:'g'},{i:'jixiong',q:250,u:'g'}],s:[{i:'suan',q:5,u:'瓣'},{i:'huluobo',q:40,u:'g'}],
+ se:['shengchou','haoyou','dianfen','liaojiu','yan','you','hujiaofen','tang'],
+ nu:{k:180,p:21,f:8,c:6},
+ st:[{t:'鸡胸横纹切薄片,加生抽、料酒、胡椒粉、1 勺淀粉抓匀,拌半勺油腌 15 分钟。鸡胸不上浆一定柴。',m:17},
+     {t:'西兰花切小朵,开水加盐和几滴油焯 90 秒,捞出沥干。',m:5},
+     {t:'热油下鸡胸片大火滑炒 60 秒至变白,盛出。宁欠勿过。',m:2},
+     {t:'补油下蒜末和胡萝卜片炒 40 秒。',m:1},
+     {t:'下西兰花大火炒 60 秒,倒回鸡胸,加蚝油、生抽、盐和少许糖,翻 30 秒出锅。',m:3}],
+ tp:'减脂增肌期的标准配置:每份 21g 蛋白、只有 180 kcal、碳水 6g。鸡胸嫩不嫩全看有没有上浆和滑炒时间够不够短。'},
+
+{id:'xilanhuaxiaren',n:'西兰花炒虾仁',e:'🦐',cat:'stirfry',cu:'家常',t:20,d:2,sp:0,tl:['pot','wok'],tg:['减脂','高蛋白','低碳水','宴客','快手'],
+ m:[{i:'xilanhua',q:350,u:'g'},{i:'xia',q:250,u:'g'}],s:[{i:'suan',q:5,u:'瓣'},{i:'huluobo',q:40,u:'g'}],
+ se:['yan','you','liaojiu','dianfen','hujiaofen','haoyou'],
+ nu:{k:163,p:19,f:7,c:6},
+ st:[{t:'虾仁去虾线,用少许盐和淀粉抓洗两遍冲净,加盐、料酒、半勺淀粉腌 10 分钟。',m:12},
+     {t:'西兰花切小朵,开水加盐和几滴油焯 90 秒,捞出沥干。',m:5},
+     {t:'热油下虾仁大火炒 50 秒至变红弯曲,盛出。',m:2},
+     {t:'补油下蒜末和胡萝卜片炒 40 秒,下西兰花炒 60 秒。',m:2},
+     {t:'倒回虾仁,加盐、蚝油和几滴料酒,大火翻 20 秒出锅。',m:2}],
+ tp:'虾仁抓洗过淀粉再冲净,口感会明显变脆弹,这是饭店虾仁和家里虾仁的差别。炒 50 秒就够。'},
+
+{id:'liangbanxilanhua',n:'凉拌西兰花',e:'🥦',cat:'cold',cu:'家常',t:15,d:1,sp:1,tl:['pot'],tg:['减脂','低卡','素菜','带饭','清爽'],
+ m:[{i:'xilanhua',q:350,u:'g'},{i:'huluobo',q:150,u:'g'}],s:[{i:'muer',q:8,u:'g'},{i:'suan',q:5,u:'瓣'}],
+ se:['shengchou','cu','xiangyou','yan','tang','baizhima','ganlajiao'],
+ nu:{k:88,p:4,f:4,c:9},
+ st:[{t:'西兰花切小朵,胡萝卜切薄片,木耳泡发撕小朵。',m:5},
+     {t:'开水加盐和几滴油,下胡萝卜和木耳焯 2 分钟,再下西兰花焯 90 秒。',m:4},
+     {t:'全部捞出立刻过冷水,彻底沥干。过冷水这步决定脆不脆。',m:2},
+     {t:'调汁:蒜末、生抽 2 勺、醋 1.5 勺、糖半勺、盐、香油,喜欢辣加辣椒油。',m:2},
+     {t:'拌匀撒白芝麻,冷藏 10 分钟更好吃。',m:2}],
+ tp:'每份 88 kcal,提前做好冷藏能放两天,是带饭最省事的一道。西兰花焯完必须过冷水,不然余温会继续把它焖黄。'},
+
+{id:'huluobochaodan',n:'胡萝卜炒鸡蛋',e:'🥕',cat:'stirfry',cu:'家常',t:14,d:1,sp:0,tl:['wok'],tg:['快手','下饭','新手友好','孩子爱吃'],
+ m:[{i:'huluobo',q:300,u:'g'},{i:'jidan',q:4,u:'个'}],s:[{i:'cong',q:1,u:'根'}],
+ se:['yan','you','shengchou','tang','hujiaofen'],
+ nu:{k:223,p:12,f:15,c:10},
+ st:[{t:'胡萝卜切细丝或薄片,越薄越容易熟。鸡蛋打散加少许盐。',m:5},
+     {t:'热油炒鸡蛋成大块盛出。',m:3},
+     {t:'补油,下胡萝卜中火炒 4 分钟至变软发亮。胡萝卜必须炒透,半生的胡萝卜又硬又涩。',m:5},
+     {t:'加盐、半勺糖和几滴生抽,倒回鸡蛋翻匀,撒葱花出锅。',m:2}],
+ tp:'胡萝卜的营养是脂溶性的,必须用油炒透才吸收得到,焯水或生吃基本浪费。所以这道菜的油不要省,炒到变软发亮为止。'},
+
+{id:'huluoboyumiji',n:'玉米胡萝卜炖鸡',e:'🌽',cat:'stew',cu:'家常',t:55,d:1,sp:0,tl:['pot'],tg:['一锅出','孩子爱吃','高蛋白','养胃'],
+ m:[{i:'jitui',q:500,u:'g'},{i:'yumi',q:2,u:'根'},{i:'huluobo',q:1,u:'根'}],s:[{i:'xianggu',q:80,u:'g'},{i:'jiang',q:4,u:'片'}],
+ se:['shengchou','laochou','liaojiu','bingtang','yan','you','bajiao','hujiaofen'],
+ nu:{k:390,p:31,f:17,c:28},
+ st:[{t:'鸡腿斩块,冷水下锅加姜料酒焯 3 分钟,撇沫捞出冲净。',m:7},
+     {t:'玉米切段,胡萝卜切滚刀块,香菇切厚片。',m:6},
+     {t:'锅中少油下 10g 冰糖炒糖色,下鸡块翻炒上色 3 分钟。',m:5},
+     {t:'加姜片、一颗八角和香菇炒香,加生抽 3 勺、老抽半勺、料酒 2 勺。',m:3},
+     {t:'加开水没过食材,大火烧开转小火炖 20 分钟。',m:22},
+     {t:'下玉米段和胡萝卜块,加盐,继续炖 15 分钟。',m:16},
+     {t:'转大火收汁 3 分钟,撒胡椒粉出锅。',m:4}],
+ tp:'玉米和胡萝卜都自带甜味,这道菜几乎不用糖(冰糖只是炒糖色)。孩子不爱吃胡萝卜的,炖到软糯甜口通常就吃了。'},
+
+{id:'nailaoyumitang',n:'奶油玉米浓汤',e:'🌽',cat:'soup',cu:'西式',t:30,d:1,sp:0,tl:['pot'],tg:['孩子爱吃','素菜','早餐','养胃'],
+ m:[{i:'yumi',q:3,u:'根'},{i:'niunai',q:400,u:'ml'}],s:[{i:'yangcong',q:0.5,u:'个'},{i:'mianfen',q:15,u:'g'}],
+ se:['yan','you','tang','heijiao'],
+ nu:{k:244,p:9,f:8,c:34},
+ st:[{t:'玉米粒用刀剥下来(或直接买玉米粒),洋葱切碎。留一小把玉米粒最后放。',m:8},
+     {t:'锅中油下洋葱中火炒 3 分钟至透明。',m:4},
+     {t:'撒入面粉,小火炒 60 秒炒出香味 —— 这一步让汤浓稠,直接加牛奶会稀。',m:2},
+     {t:'下大部分玉米粒炒匀,加 3 碗水煮 10 分钟至玉米软透。',m:11},
+     {t:'用勺子压碎玉米粒或用搅拌机打成糊,越碎越浓。',m:3},
+     {t:'转小火倒入牛奶慢慢搅匀,加盐、少许糖和黑胡椒,煮 3 分钟。',m:4},
+     {t:'撒入留下的整粒玉米,增加口感层次。',m:1}],
+ tp:'炒面粉那一步是这碗汤能不能"浓"的关键,西式浓汤都靠它。牛奶下锅后只能小火,大火会分离出渣。'},
+
+{id:'yumichaoxiaren',n:'玉米炒虾仁',e:'🌽',cat:'stirfry',cu:'家常',t:20,d:2,sp:0,tl:['pot','wok'],tg:['孩子爱吃','高蛋白','快手','宴客'],
+ m:[{i:'yumi',q:2,u:'根'},{i:'xia',q:250,u:'g'}],s:[{i:'wandou',q:60,u:'g'},{i:'huluobo',q:40,u:'g'}],
+ se:['yan','you','liaojiu','dianfen','hujiaofen','tang'],
+ nu:{k:244,p:19,f:8,c:24},
+ st:[{t:'玉米粒剥下,豌豆和胡萝卜丁一起开水焯 3 分钟至断生,沥干。',m:7},
+     {t:'虾仁去虾线,盐和淀粉抓洗冲净,加盐、料酒、半勺淀粉腌 10 分钟。',m:12},
+     {t:'热油下虾仁大火炒 50 秒变红,盛出。',m:2},
+     {t:'补油下玉米粒、豌豆、胡萝卜丁中火炒 2 分钟。',m:3},
+     {t:'倒回虾仁,加盐、少许糖和胡椒粉,大火翻 30 秒出锅。',m:2}],
+ tp:'颜色好看是这道菜的一半价值,所以配料先焯水保住颜色,别在锅里久炒发黄。虾仁最后回锅只翻 30 秒。'},
+
+{id:'fashitusi',n:'法式吐司',e:'🍞',cat:'breakfast',cu:'西式',t:15,d:1,sp:0,tl:['wok'],tg:['早餐','孩子爱吃','快手','新手友好'],
+ m:[{i:'tusi',q:6,u:'片'},{i:'niunai',q:200,u:'ml'},{i:'jidan',q:3,u:'个'}],s:[],
+ se:['tang','you','fengmi','yan'],
+ nu:{k:318,p:14,f:14,c:34},
+ st:[{t:'鸡蛋打散,加牛奶、1 勺糖和一小撮盐,搅到完全均匀。',m:3},
+     {t:'吐司片两面都在蛋奶液里泡 10 秒,让它吸透但不要泡烂。用厚切吐司最好。',m:4},
+     {t:'平底锅小火,放一小块黄油或少许油。',m:1},
+     {t:'下吐司小火煎 2 分钟至底面金黄,翻面再煎 2 分钟。',m:5},
+     {t:'出锅淋蜂蜜。想更丰盛可以配水果或酸奶。',m:2}],
+ tp:'必须小火。中大火会让外面焦了里面的蛋奶还是生的。厚切吐司比薄片好,能吸住蛋液又不塌。'},
+
+{id:'peigentusijuan',n:'培根鸡蛋吐司卷',e:'🥓',cat:'breakfast',cu:'西式',t:18,d:2,sp:0,tl:['wok'],tg:['早餐','高蛋白','孩子爱吃'],
+ m:[{i:'tusi',q:6,u:'片'},{i:'peigen',q:120,u:'g'},{i:'jidan',q:3,u:'个'}],s:[{i:'shengcai',q:40,u:'g'}],
+ se:['yan','heijiao','you'],
+ nu:{k:394,p:18,f:22,c:31},
+ st:[{t:'吐司切掉四边(留着不切也行),用擂面杖或手掌压扁压薄,这样才卷得起来不裂。',m:4},
+     {t:'平底锅不放油,下培根中火煎 3 分钟至边缘焦脆,盛出。锅里留下的培根油别倒。',m:4},
+     {t:'用培根油炒鸡蛋成松软的碎块,加盐和黑胡椒。',m:3},
+     {t:'压扁的吐司上铺生菜、炒蛋和培根,从一边卷紧。',m:4},
+     {t:'卷好的吐司卷收口朝下放进锅里,小火煎 2 分钟定型,再翻着把四面都煎到微黄。',m:4}],
+ tp:'吐司必须压薄才卷得动。收口朝下先煎定型,不然一松手就散开。用培根煎出的油炒蛋,香味完全不一样。'},
+
+{id:'suannishengcai',n:'蒜泥生菜',e:'🥬',cat:'cold',cu:'家常',t:10,d:1,sp:1,tl:['pot'],tg:['快手','低卡','素菜','减脂','新手友好'],
+ m:[{i:'shengcai',q:500,u:'g'}],s:[{i:'suan',q:8,u:'瓣'}],
+ se:['shengchou','cu','xiangyou','yan','tang','you','ganlajiao'],
+ nu:{k:69,p:2,f:5,c:4},
+ st:[{t:'生菜掰成大片洗净。锅中水加盐和几滴油烧开。',m:4},
+     {t:'下生菜焯 30 秒立刻捞出过冷水,挤掉多余水分。',m:2},
+     {t:'蒜捣成泥(捣的比切的香),加生抽 2 勺、醋 1 勺、糖半勺、盐、香油。',m:2},
+     {t:'烧 2 勺油到冒烟,泼在蒜泥上激香,拌匀后浇在生菜上。',m:2}],
+ tp:'蒜要捣成泥不要切末,细胞破得越彻底蒜香越足。热油一泼,生蒜的辛辣变成蒜香,这是所有蒜泥菜的通用手法。'},
+
+{id:'shengcaibaorou',n:'生菜包肉',e:'🥬',cat:'cold',cu:'家常',t:50,d:2,sp:1,tl:['pot'],tg:['宴客','低碳水','夏天','聚餐'],
+ m:[{i:'shengcai',q:400,u:'g'},{i:'wuhuarou',q:250,u:'g'}],s:[{i:'huanggua',q:1,u:'根'},{i:'suan',q:6,u:'瓣'}],
+ se:['doubanjiang','shengchou','tang','xiangyou','liaojiu','jiang','yan','huajiao','cu'],
+ nu:{k:328,p:14,f:28,c:5},
+ st:[{t:'五花肉整块冷水下锅,加姜片、料酒、几粒花椒,煮 30 分钟至筷子能插透。',m:33},
+     {t:'捞出放凉(冷藏 15 分钟更好切),切成尽可能薄的大片。',m:8},
+     {t:'生菜掰成完整的碗状叶片洗净沥干,黄瓜切细丝。',m:5},
+     {t:'调蘸酱:豆瓣酱 1 勺、生抽 1 勺、糖半勺、蒜末、香油、几滴醋,搅匀。',m:3},
+     {t:'吃法:生菜叶里放一片肉、几根黄瓜丝,抹一点酱,包起来。',m:1}],
+ tp:'肉必须完全凉透再切,热的切不薄。生菜要选叶片大而完整的,能兜住东西不漏。这道菜适合几个人围着吃,自己动手包。'},
+
+{id:'shengcaidantang',n:'生菜鸡蛋汤',e:'🥬',cat:'soup',cu:'家常',t:10,d:1,sp:0,tl:['pot'],tg:['快手','低卡','减脂','新手友好'],
+ m:[{i:'shengcai',q:400,u:'g'},{i:'jidan',q:2,u:'个'}],s:[{i:'xiapi',q:8,u:'g'},{i:'jiang',q:2,u:'片'}],
+ se:['yan','you','xiangyou','hujiaofen','shengchou'],
+ nu:{k:98,p:7,f:6,c:4},
+ st:[{t:'生菜掰大片洗净,鸡蛋打散。',m:3},
+     {t:'锅中少油,下姜片和虾皮炒 40 秒出香,加 5 碗水烧开。',m:3},
+     {t:'加盐和几滴生抽调味,转小火,蛋液举高细细淋入,等 5 秒再推成蛋花。',m:2},
+     {t:'下生菜煮 30 秒,叶片一变软立刻关火。',m:1},
+     {t:'滴香油,撒胡椒粉。',m:1}],
+ tp:'生菜只要 30 秒。这是最快的一碗汤 —— 从开火到上桌不超过 6 分钟,适合已经炒完两个菜、发现还差个汤的时候。'},
+
+{id:'huangguabanjisi',n:'黄瓜拌鸡丝',e:'🥒',cat:'cold',cu:'川菜',t:35,d:2,sp:2,tl:['pot'],tg:['减脂','增肌','高蛋白','带饭','夏天'],
+ m:[{i:'huanggua',q:2,u:'根'},{i:'jixiong',q:250,u:'g'}],s:[{i:'xiangcai',q:15,u:'g'},{i:'huasheng',q:20,u:'g'}],
+ se:['shengchou','cu','tang','suan','xiangyou','lajiaomian','yan','liaojiu','jiang','huajiao','you'],
+ nu:{k:168,p:19,f:8,c:5},
+ st:[{t:'鸡胸冷水下锅,加姜片、葱段、料酒和少许盐,水开后转小火煮 8 分钟。',m:11},
+     {t:'关火后不捞出,在汤里再泡 10 分钟,靠余温焖熟。这样鸡胸才不柴。',m:11},
+     {t:'捞出放凉,顺着纹路用手撕成细丝 —— 手撕的断面毛糙,比刀切能挂住三倍的味道。',m:6},
+     {t:'黄瓜拍裂切段,撒少许盐腌 5 分钟,倒掉水。',m:6},
+     {t:'调汁:蒜末、生抽 2 勺、醋 1.5 勺、糖 1 勺、辣椒油、香油、花椒粉。',m:2},
+     {t:'鸡丝和黄瓜拌匀,撒花生碎和香菜。',m:2}],
+ tp:'"煮 8 分钟 + 关火焖 10 分钟"是鸡胸不柴的通用做法,一直煮熟必然发死。手撕不要刀切,这是入味的关键。'},
+
+{id:'huangguaxiaren',n:'黄瓜炒虾仁',e:'🥒',cat:'stirfry',cu:'家常',t:18,d:2,sp:0,tl:['wok'],tg:['减脂','高蛋白','低碳水','快手','夏天'],
+ m:[{i:'huanggua',q:2,u:'根'},{i:'xia',q:250,u:'g'}],s:[{i:'muer',q:8,u:'g'},{i:'suan',q:4,u:'瓣'}],
+ se:['yan','you','liaojiu','dianfen','hujiaofen','xiangyou'],
+ nu:{k:156,p:17,f:8,c:4},
+ st:[{t:'虾仁去虾线,盐和淀粉抓洗两遍冲净,加盐、料酒、半勺淀粉腌 10 分钟。',m:12},
+     {t:'黄瓜斜切厚片,木耳泡发撕小朵。',m:4},
+     {t:'热油下虾仁大火炒 50 秒至变红弯曲,盛出。',m:2},
+     {t:'补油下蒜末爆香,下木耳和黄瓜大火炒 90 秒。',m:2},
+     {t:'倒回虾仁,加盐和胡椒粉,滴几滴香油,翻 20 秒出锅。',m:2}],
+ tp:'黄瓜出水快,必须大火短炒。虾仁和黄瓜都是 1 分钟内的菜,分开炒再合并,谁都不会被炒老炒软。'},
+
+{id:'bocaichaodan',n:'菠菜炒鸡蛋',e:'🥬',cat:'stirfry',cu:'家常',t:14,d:1,sp:0,tl:['wok'],tg:['快手','下饭','新手友好','补铁'],
+ m:[{i:'bocai',q:400,u:'g'},{i:'jidan',q:4,u:'个'}],s:[{i:'suan',q:4,u:'瓣'}],
+ se:['yan','you','shengchou','jijing','xiangyou'],
+ nu:{k:211,p:15,f:15,c:4},
+ st:[{t:'菠菜洗净切段,根茎和叶子分开。鸡蛋打散加少许盐。',m:5},
+     {t:'热油炒鸡蛋成大块盛出。',m:3},
+     {t:'补油下蒜末爆香,大火先下菠菜根茎炒 40 秒。',m:2},
+     {t:'下菠菜叶炒 40 秒至刚塌,倒回鸡蛋,加盐和几滴生抽,翻 20 秒出锅。',m:3},
+     {t:'滴几滴香油。菠菜出水多,连汁一起盛出来拌饭很香。',m:1}],
+ tp:'菠菜和鸡蛋是补铁的经典搭配。介意草酸的话可以先焯 30 秒再炒,代价是香味淡一点。'},
+
+{id:'qincaichaoniurou',n:'芹菜炒牛肉',e:'🌿',cat:'stirfry',cu:'家常',t:28,d:2,sp:1,tl:['wok'],tg:['下饭','增肌','高蛋白','低碳水'],
+ m:[{i:'qincai',q:300,u:'g'},{i:'niurou',q:250,u:'g'}],s:[{i:'jianjiao',q:1,u:'个'},{i:'huluobo',q:40,u:'g'}],
+ se:['shengchou','laochou','haoyou','dianfen','liaojiu','yan','you','tang','jiang','suan','hujiaofen'],
+ nu:{k:191,p:18,f:11,c:5},
+ st:[{t:'牛肉横纹切薄片,加生抽、蚝油、料酒、1 勺淀粉抓匀,拌半勺油腌 15 分钟。',m:17},
+     {t:'芹菜撕掉老筋斜切段,尖椒切圈,胡萝卜切片。',m:6},
+     {t:'锅烧到冒烟下油,牛肉片摊平煎 30 秒再翻炒,共 80 秒盛出。',m:2},
+     {t:'补油下姜蒜末和尖椒爆香,大火下芹菜和胡萝卜炒 2 分钟至断生。',m:3},
+     {t:'倒回牛肉,加生抽、少许老抽、盐和半勺糖,大火翻 30 秒出锅。',m:2}],
+ tp:'芹菜的清香和牛肉的厚味互相压得住,是很稳的一对。牛肉横纹切、大火快炒,别为了等芹菜熟而把牛肉一起炒老。'},
+
+{id:'qincaibanfuzhu',n:'芹菜拌腐竹',e:'🌿',cat:'cold',cu:'家常',t:50,d:1,sp:1,tl:['pot'],tg:['高蛋白','低卡','素菜','带饭','清爽'],
+ m:[{i:'qincai',q:300,u:'g'},{i:'fuzhu',q:80,u:'g'}],s:[{i:'huluobo',q:50,u:'g'},{i:'muer',q:8,u:'g'}],
+ se:['shengchou','cu','xiangyou','yan','tang','suan','ganlajiao','baizhima'],
+ nu:{k:183,p:13,f:11,c:8},
+ st:[{t:'腐竹温水泡 40 分钟至完全无硬芯,切段。压个盘子让它整根没在水里。',m:42},
+     {t:'芹菜撕筋斜切段,胡萝卜切丝,木耳泡发。',m:5},
+     {t:'开水下腐竹焯 2 分钟,再下芹菜、胡萝卜、木耳焯 90 秒,全部捞出过冷水沥干。',m:5},
+     {t:'调汁:蒜末、生抽 2 勺、醋 1.5 勺、糖半勺、盐、香油、辣椒油。',m:2},
+     {t:'拌匀撒白芝麻,冷藏 15 分钟更入味。',m:2}],
+ tp:'腐竹泡不透是最常见的失败 —— 中间那条硬芯嚼起来像塑料。温水、40 分钟、压住别让它浮起来。'},
+
+{id:'jiucaiyouyu',n:'韭菜炒鱿鱼',e:'🦑',cat:'stirfry',cu:'家常',t:22,d:2,sp:1,tl:['pot','wok'],tg:['高蛋白','低碳水','下饭','快手'],
+ m:[{i:'jiucai',q:250,u:'g'},{i:'youyu',q:350,u:'g'}],s:[{i:'jianjiao',q:1,u:'个'},{i:'yangcong',q:0.3,u:'个'}],
+ se:['shengchou','haoyou','liaojiu','yan','you','jiang','suan','hujiaofen','dianfen'],
+ nu:{k:177,p:20,f:9,c:4},
+ st:[{t:'鱿鱼撕掉外膜,内壁打十字花刀(斜刀不切断),切成大块。打花刀的鱿鱼一遇热就卷成花。',m:8},
+     {t:'鱿鱼开水焯 20 秒,一卷起来立刻捞出。焯过水再炒,能防止炒的时候大量出水。',m:3},
+     {t:'韭菜切段(根叶分开),尖椒切圈,洋葱切丝。',m:4},
+     {t:'热油下姜蒜末和尖椒爆香,下洋葱炒 40 秒。',m:2},
+     {t:'大火下鱿鱼炒 40 秒,加生抽、蚝油、料酒。',m:1},
+     {t:'下韭菜根部炒 30 秒,再下韭菜叶炒 30 秒,加盐胡椒粉,翻匀立刻出锅。',m:3}],
+ tp:'鱿鱼老不老只看时间:焯 20 秒 + 炒 40 秒,超过就变橡皮。韭菜也是 60 秒的菜,两样都极快,所以火要够大、手要不停。'},
+
+{id:'hongshaojichi',n:'红烧鸡翅',e:'🍗',cat:'stew',cu:'家常',t:35,d:1,sp:0,tl:['pot'],tg:['下饭','孩子爱吃','宴客','新手友好'],
+ m:[{i:'jichi',q:600,u:'g'}],s:[{i:'jiang',q:4,u:'片'},{i:'cong',q:2,u:'根'}],
+ se:['shengchou','laochou','bingtang','liaojiu','yan','you','bajiao','baizhima'],
+ nu:{k:395,p:34,f:25,c:8},
+ st:[{t:'鸡翅两面各划两刀到骨头。冷水下锅加姜料酒焯 3 分钟,撇沫捞出擦干。',m:8},
+     {t:'锅中少油,下鸡翅中火煎 4 分钟至两面金黄。煎过的鸡翅皮才紧实好吃。',m:5},
+     {t:'把鸡翅推到一边,下 15g 冰糖小火熬到琥珀色,翻炒鸡翅让它均匀上糖色。',m:4},
+     {t:'加生抽 2 勺、老抽半勺、料酒 2 勺、姜片和一颗八角。',m:2},
+     {t:'加开水到鸡翅一半高,大火烧开转中小火焖 12 分钟。',m:13},
+     {t:'开盖大火收汁 3 分钟至浓稠挂住鸡翅,加盐调味,撒葱花白芝麻。',m:4}],
+ tp:'和可乐鸡翅的区别是自己炒糖色 —— 香味有层次得多,而且甜度自己控制。收汁要一直翻动,糖色从亮到苦只有一分钟。'},
+
+{id:'suanxiangjianjichi',n:'蒜香煎鸡翅',e:'🍗',cat:'stirfry',cu:'家常',t:40,d:1,sp:0,tl:['wok'],tg:['快手','高蛋白','低碳水','下酒'],
+ m:[{i:'jichi',q:600,u:'g'}],s:[{i:'suan',q:10,u:'瓣'}],
+ se:['shengchou','haoyou','liaojiu','heijiao','yan','you','wuxiangfen','tang'],
+ nu:{k:386,p:34,f:26,c:4},
+ st:[{t:'鸡翅两面各划两刀。加蒜末、生抽 2 勺、蚝油 1 勺、料酒、黑胡椒、五香粉、少许糖抓匀。',m:6},
+     {t:'装袋冷藏腌 20 分钟以上,腌越久越入味。',m:21},
+     {t:'平底锅少油,鸡翅擦掉多余腌料后下锅,中小火煎 6 分钟。',m:7},
+     {t:'翻面再煎 5 分钟,煎到两面金黄、皮微脆。全程中小火,大火外面焦了里面还是生的。',m:6},
+     {t:'倒入剩下的腌料汁,转中火收汁 2 分钟,让每只翅都裹上一层亮汁。',m:3}],
+ tp:'不用炖、不用炸,一口平底锅 11 分钟。关键是中小火慢煎 —— 鸡翅有骨头,需要时间把热传到中心。'},
+
+{id:'ganjiandaiyu',n:'干煎带鱼',e:'🐟',cat:'stirfry',cu:'家常',t:35,d:2,sp:0,tl:['wok'],tg:['下饭','高蛋白','低碳水','下酒'],
+ m:[{i:'daiyu',q:600,u:'g'}],s:[{i:'jiang',q:5,u:'片'},{i:'cong',q:2,u:'根'}],
+ se:['yan','liaojiu','dianfen','you','hujiaofen','wuxiangfen','shengchou'],
+ nu:{k:330,p:35,f:18,c:7},
+ st:[{t:'带鱼去头去内脏,切 5cm 段。表面那层银膜别刮 —— 那是脂肪和营养,不是脏东西。',m:8},
+     {t:'鱼段加盐、料酒、姜片、胡椒粉和少许五香粉抓匀,腌 15 分钟。',m:16},
+     {t:'用厨房纸把每段鱼彻底擦干,两面薄薄拍一层干淀粉。擦干 + 拍粉是不粘不破的关键。',m:4},
+     {t:'锅烧到很热再下油,油热后撒一小撮盐,下鱼段。',m:2},
+     {t:'中火煎 4 分钟不要动它,能自己滑动了再翻面,另一面煎 3 分钟至两面金黄酥脆。',m:8},
+     {t:'撒葱花出锅,可以配生抽蘸着吃。',m:1}],
+ tp:'煎鱼三件套:鱼身擦到全干、锅烧到冒烟、下锅一分钟内绝对不碰。带鱼肉厚,中火煎才能熟透而不焦。'},
+
+{id:'biandouxiaren',n:'荷兰豆炒虾仁',e:'🫛',cat:'stirfry',cu:'家常',t:18,d:1,sp:0,tl:['wok'],tg:['减脂','高蛋白','低碳水','快手','宴客'],
+ m:[{i:'biandou',q:300,u:'g'},{i:'xia',q:250,u:'g'}],s:[{i:'huluobo',q:40,u:'g'},{i:'suan',q:4,u:'瓣'}],
+ se:['yan','you','liaojiu','dianfen','hujiaofen','haoyou'],
+ nu:{k:168,p:19,f:8,c:5},
+ st:[{t:'荷兰豆掐掉两头和筋,虾仁去虾线用盐和淀粉抓洗冲净。',m:6},
+     {t:'虾仁加盐、料酒、半勺淀粉腌 10 分钟。',m:11},
+     {t:'热油下虾仁大火炒 50 秒至变红,盛出。',m:2},
+     {t:'补油下蒜末和胡萝卜片炒 40 秒,下荷兰豆大火炒 2 分钟至变翠绿。',m:3},
+     {t:'倒回虾仁,加盐、蚝油和胡椒粉,翻 20 秒出锅。',m:2}],
+ tp:'荷兰豆一定要掐筋,不掐嚼起来全是丝。炒到颜色变成鲜亮的翠绿就熟了,继续炒会发黄变软。'},
+
+{id:'baizhuoqiukui',n:'白灼秋葵',e:'🌿',cat:'cold',cu:'家常',t:12,d:1,sp:0,tl:['pot'],tg:['低卡','减脂','素菜','快手','新手友好'],
+ m:[{i:'qiukui',q:400,u:'g'}],s:[{i:'suan',q:4,u:'瓣'}],
+ se:['shengchou','xiangyou','yan','you','tang','ganlajiao'],
+ nu:{k:72,p:3,f:4,c:6},
+ st:[{t:'秋葵洗净,切掉顶部的硬蒂,但不要切开 —— 整根焯才不会流失黏液。',m:4},
+     {t:'锅中水加盐和几滴油烧开,下整根秋葵焯 2 分半。',m:4},
+     {t:'捞出过冷水,保持翠绿。然后纵向对半剖开摆盘。',m:2},
+     {t:'调汁:蒜末、生抽 2 勺、少许糖、香油,喜欢辣加辣椒油,浇上去。',m:2}],
+ tp:'整根焯、焯完再切,是秋葵不流失黏液的唯一办法。切开焯的话那些好东西全留在水里了。每份 72 kcal。'},
+
+{id:'peigenlusun',n:'培根芦笋卷',e:'🥓',cat:'bake',cu:'西式',t:30,d:1,sp:0,tl:['oven'],tg:['宴客','低碳水','免看火','下酒'],
+ m:[{i:'lusun',q:400,u:'g'},{i:'peigen',q:120,u:'g'}],s:[],
+ se:['heijiao','yan','you','baizhima'],
+ nu:{k:192,p:9,f:16,c:3},
+ st:[{t:'芦笋掐掉根部老的一段(用手掰,会自然在老嫩交界处断开),洗净。',m:5},
+     {t:'每 3–4 根芦笋一束,用一片培根从中间螺旋缠紧。培根本身有盐和油,不用另外抹。',m:8},
+     {t:'烤盘铺锡纸,卷好的芦笋束摆开不重叠,刷薄油撒黑胡椒。',m:3},
+     {t:'烤箱 200℃ 预热 10 分钟。',m:10},
+     {t:'200℃ 烤 12 分钟至培根边缘焦脆、芦笋变软。撒白芝麻。',m:12}],
+ tp:'芦笋的老根用手掰不用刀切 —— 它会在纤维变老的那一点自然断掉,比目测准。培根有咸味,盐要少放或不放。'},
+
+{id:'hongshuzhou',n:'红薯粥',e:'🍠',cat:'staple',cu:'家常',t:50,d:1,sp:0,tl:['pot'],tg:['早餐','养胃','素菜','新手友好','极简'],
+ m:[{i:'hongshu',q:400,u:'g'},{i:'mifan',q:100,u:'g'}],s:[{i:'hongzao',q:5,u:'颗'}],
+ se:['bingtang'],
+ nu:{k:249,p:5,f:1,c:55},
+ st:[{t:'大米淘净,加半勺油拌一下(米粒更容易开花)。红薯削皮切小块。',m:6},
+     {t:'锅中加 9 倍水烧开,下大米,大火煮开转小火。',m:5},
+     {t:'小火煮 20 分钟,期间搅动几次防粘底。',m:21},
+     {t:'下红薯块继续煮 15 分钟至红薯软烂、粥变浓稠。',m:16},
+     {t:'下红枣煮 5 分钟。红薯本身很甜,一般不用加糖。',m:6}],
+ tp:'红薯要中途放。一开始就下的话煮到最后全化了,喝不到软糯的块。想更甜就选红心红薯。'},
+
+{id:'pinggucaodan',n:'平菇炒蛋',e:'🍄',cat:'stirfry',cu:'家常',t:16,d:1,sp:0,tl:['wok'],tg:['快手','下饭','素菜','新手友好'],
+ m:[{i:'pinggu',q:300,u:'g'},{i:'jidan',q:4,u:'个'}],s:[{i:'cong',q:1,u:'根'},{i:'qingjiao',q:1,u:'个'}],
+ se:['yan','you','shengchou','haoyou','hujiaofen'],
+ nu:{k:203,p:13,f:15,c:4},
+ st:[{t:'平菇撕成条(撕的比切的好,断面更容易入味),不用洗太久,冲一下挤干水。',m:5},
+     {t:'鸡蛋打散加少许盐,热油炒成大块盛出。',m:3},
+     {t:'补油,大火下平菇炒 3 分钟。平菇水分很多,要炒到水分收干、边缘微焦才香。',m:4},
+     {t:'下青椒块炒 40 秒,加生抽、蚝油、盐和胡椒粉。',m:2},
+     {t:'倒回鸡蛋翻匀,撒葱花出锅。',m:2}],
+ tp:'菌类都要炒到出水又收干,那股香味才出来。平菇下锅先别放盐,放了会更疯狂出水。'},
+
+{id:'wuxianghuangdou',n:'五香黄豆',e:'🫘',cat:'cold',cu:'家常',t:75,d:1,sp:1,tl:['pot'],tg:['下酒','高蛋白','素菜','带饭'],
+ m:[{i:'huangdou',q:150,u:'g'}],s:[{i:'jiang',q:3,u:'片'},{i:'ganlajiao',q:3,u:'个'}],
+ se:['bajiao','guipi','xiangye','huajiao','shengchou','laochou','yan','tang','xiangyou','wuxiangfen'],
+ nu:{k:185,p:17,f:9,c:9},
+ st:[{t:'黄豆用清水泡 6 小时以上(或隔夜),泡到豆子完全鼓胀、捏起来没有硬芯。',m:8},
+     {t:'黄豆冷水下锅,加姜片、八角、桂皮、香叶、花椒、干辣椒。',m:4},
+     {t:'加生抽 3 勺、老抽半勺、1 勺糖和少许盐,水没过黄豆两指。',m:2},
+     {t:'大火烧开转小火煮 45 分钟至黄豆软糯但不散。',m:46},
+     {t:'开盖转中火收汁 10 分钟,让味道渗进豆子里。',m:11},
+     {t:'关火放凉,滴几滴香油。冷了比热的好吃,冷藏能放三四天。',m:3}],
+ tp:'黄豆必须泡透,泡不透煮两小时也是硬的。判断标准:掰开一颗,断面颜色均匀没有白色硬心。放凉后味道才真正进去。'},
+
+{id:'suannaiyanmaibei',n:'酸奶燕麦杯',e:'🥣',cat:'breakfast',cu:'西式',t:8,d:1,sp:0,tl:[],tg:['早餐','快手','减脂','免开火','新手友好'],
+ m:[{i:'suannai',q:400,u:'g'},{i:'yanmai',q:60,u:'g'}],s:[{i:'hongzao',q:30,u:'g'},{i:'baizhima',q:5,u:'g'}],
+ se:['fengmi'],
+ nu:{k:185,p:7,f:5,c:28},
+ st:[{t:'即食燕麦片直接用,生燕麦片先用少量热水焖 3 分钟泡软。',m:4},
+     {t:'红枣去核切碎。',m:2},
+     {t:'杯子里一层燕麦、一层酸奶,交替铺两到三层。',m:1},
+     {t:'表面撒红枣碎和白芝麻,想甜就淋一点蜂蜜。',m:1}],
+ tp:'全程不开火,是最省事的一份早餐。想更管饱就头一晚做好冷藏("隔夜燕麦"),燕麦吸饱酸奶后口感像布丁,早上直接拿走。'}
+];
+
+/* ==========================================================================
+   第 3 层 · 状态与持久化
+   纪律:所有状态变更必须走 set() / save(),不允许改完 DOM 再改 state
+   ========================================================================== */
+
+var LSKEY = 'eatwhat_v1';
+
+/* 探测本地存储可用性。某些环境(Safari 隐私模式、data: 源、
+   部分浏览器的 file:// 策略)会禁用 localStorage —— 这时应用照常可用,
+   但刷新后会忘记,必须明确告诉用户,不能让数据静默消失。 */
+var STORAGE_OK = (function(){
+  try{ localStorage.setItem('__ew_probe','1'); localStorage.removeItem('__ew_probe'); return true; }
+  catch(e){ return false; }
+})();
+
+function defPrefs(){
+  var tl=[]; for(var i=0;i<TOOLS.length;i++) if(TOOLS[i].def) tl.push(TOOLS[i].id);
+  return {servings:3, goal:'balance', kcalCap:null, avoid:[], vegetarian:false,
+          halal:false, maxSpicy:3, tools:tl, staples:true, ignoreTools:false};
+}
+
+var S = {
+  /* 持久化 */
+  selected:[], inventory:[], prefs:defPrefs(), favs:[], history:[], today:[], weekPlan:null,
+  /* 会话内 */
+  tab:'pick', pickCat:'hot', q:'', sort:'match', roll:null, rolled:[], dayPlan:null,
+  openId:null, cookId:null, cookStep:0, timer:null, timerLeft:0, wakeLock:null, shopDone:{}
+};
+
+function save(){
+  try{
+    localStorage.setItem(LSKEY, JSON.stringify({
+      selected:S.selected, inventory:S.inventory, prefs:S.prefs,
+      favs:S.favs, history:S.history, today:S.today, weekPlan:S.weekPlan
+    }));
+  }catch(e){ /* 隐私模式或配额满,静默降级为会话内可用 */ }
+}
+
+function load(){
+  try{
+    var raw = localStorage.getItem(LSKEY); if(!raw) return;
+    var d = JSON.parse(raw); if(!d) return;
+    if(Array.isArray(d.selected))  S.selected  = d.selected;
+    if(Array.isArray(d.inventory)) S.inventory = d.inventory;
+    if(Array.isArray(d.favs))      S.favs      = d.favs;
+    if(Array.isArray(d.history))   S.history   = d.history;
+    if(Array.isArray(d.today))     S.today     = d.today;
+    if(d.weekPlan)                 S.weekPlan  = d.weekPlan;
+    if(d.prefs){ var p=defPrefs(); for(var k in p) if(d.prefs[k]!==undefined) p[k]=d.prefs[k]; S.prefs=p; }
+  }catch(e){}
+}
+
+/* ==========================================================================
+   第 4 层 · 工具函数
+   ========================================================================== */
+
+var $ = function(s){ return document.querySelector(s); };
+var DAY = 86400000;
+
+function esc(s){
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function ingOf(id){ return IMAP[id]; }
+function nameOf(id){ var g=IMAP[id]; return g?g.n:id; }
+function emojiOf(id){ var g=IMAP[id]; return g?g.e:'•'; }
+function recOf(id){ for(var i=0;i<RECIPES.length;i++) if(RECIPES[i].id===id) return RECIPES[i]; return null; }
+function inArr(a,v){ return a.indexOf(v)>=0; }
+function toggleArr(a,v){ var i=a.indexOf(v); if(i>=0) a.splice(i,1); else a.push(v); return a; }
+function todayStamp(){ var d=new Date(); d.setHours(0,0,0,0); return d.getTime(); }
+
+/* 库存剩余天数 */
+function remainDays(it){
+  if(it.days>=365) return 999;
+  return it.days - Math.floor((Date.now()-it.addedAt)/DAY);
+}
+function invState(it){
+  var r=remainDays(it);
+  if(r<=0) return 'expired';
+  if(r<=2) return 'near';
+  return 'ok';
+}
+
+/* 份数换算:qty 以 3 人份存储 */
+function scaleQty(q,u,servings){
+  var v = q*servings/3;
+  if(u==='g'||u==='ml'){
+    if(v<10) return Math.max(1, Math.round(v));
+    return Math.round(v/5)*5;
+  }
+  var r = Math.round(v*2)/2;
+  return r<0.5 ? 0.5 : r;
+}
+function fmtQty(n){
+  if(n===Math.floor(n)) return String(n);
+  return String(Math.round(n*10)/10);
+}
+function qtyText(item,servings){
+  return fmtQty(scaleQty(item.q,item.u,servings)) + item.u;
+}
+
+/* 替代方案 */
+function subFor(rec,id){
+  if(rec && rec.sb && rec.sb[id]) return rec.sb[id];
+  return SUBS[id] || '';
+}
+
+function toast(msg){
+  var t=$('#toast'); t.textContent=msg; t.classList.add('on');
+  clearTimeout(toast._t); toast._t=setTimeout(function(){ t.classList.remove('on'); },1900);
+}
+
+/* ==========================================================================
+   第 5 层 · 匹配算法(PRD §6)
+   ========================================================================== */
+
+/* 某食材是否"手上有":本次勾选 或 调味基础包覆盖 */
+function buildHave(){
+  var sel={}; for(var i=0;i<S.selected.length;i++) sel[S.selected[i]]=1;
+  var st=S.prefs.staples;
+  return function(id){ return !!sel[id] || (st && !!PACK[id]); };
+}
+
+/* 已勾选且临期的食材集合 */
+function buildNear(){
+  var near={};
+  for(var i=0;i<S.inventory.length;i++){
+    var it=S.inventory[i], st=invState(it);
+    if(st==='near'||st==='expired') near[it.ing]=1;
+  }
+  return near;
+}
+
+/* 荤素判定:主料或辅料里有动物性食材(蛋奶不计) */
+function isMeaty(r){
+  var a=r.m.concat(r.s);
+  for(var i=0;i<a.length;i++){ var g=IMAP[a[i].i]; if(g&&g.an) return true; }
+  return false;
+}
+function hasPork(r){
+  var a=r.m.concat(r.s);
+  for(var i=0;i<a.length;i++){ var g=IMAP[a[i].i]; if(g&&g.an==='pork') return true; }
+  return false;
+}
+
+function match(){
+  var have = buildHave();
+  var near = buildNear();
+  var sel  = {}; for(var i=0;i<S.selected.length;i++) sel[S.selected[i]]=1;
+  var avoid= {}; for(i=0;i<S.prefs.avoid.length;i++) avoid[S.prefs.avoid[i]]=1;
+  var tools= {}; for(i=0;i<S.prefs.tools.length;i++) tools[S.prefs.tools[i]]=1;
+  var fav  = {}; for(i=0;i<S.favs.length;i++) fav[S.favs[i]]=1;
+  var last = {};
+  for(i=0;i<S.history.length;i++){ var h=S.history[i]; if(!last[h.id]||h.at>last[h.id]) last[h.id]=h.at; }
+
+  var P=S.prefs, now=Date.now(), out=[], hiddenTool=0, hiddenAvoid=0;
+
+  /* 零输入保护:一样都没勾时不做推荐。
+     不加这个判断的话,所有「单主料 + 全基础包调味」的菜会因为
+     missMain=1 / missTotal=1 恰好落进 Tier 1,显示成"差 1 样:南瓜"——
+     用户什么都没选,说"差一样"是误导。这种情况应该走引导页。 */
+  if(!S.selected.length) return {list:[], hiddenTool:0, hiddenAvoid:0, noInput:true};
+
+  for(var ri=0; ri<RECIPES.length; ri++){
+    var r=RECIPES[ri], k;
+
+    /* ---- 硬过滤 ---- */
+    var all=r.m.concat(r.s), bad=false;
+    for(k=0;k<all.length;k++) if(avoid[all[k].i]){ bad=true; break; }
+    if(!bad) for(k=0;k<r.se.length;k++) if(avoid[r.se[k]]){ bad=true; break; }
+    if(bad){ hiddenAvoid++; continue; }
+
+    if(P.vegetarian && isMeaty(r)) continue;
+    if(P.halal && (hasPork(r) || inArr(r.se,'liaojiu'))) continue;
+    if(r.sp > P.maxSpicy) continue;
+    if(P.kcalCap && r.nu.k > P.kcalCap) continue;
+
+    if(!P.ignoreTools){
+      var lackTool=false;
+      for(k=0;k<r.tl.length;k++) if(!tools[r.tl[k]]){ lackTool=true; break; }
+      if(lackTool){ hiddenTool++; continue; }
+    }
+
+    /* ---- 缺料计算 ---- */
+    var missMain=[], missSub=[], missSeason=[], usedSel=0, nearHit=[];
+    for(k=0;k<r.m.length;k++){
+      var mi=r.m[k];
+      if(!have(mi.i)) missMain.push(mi.i);
+      else { if(sel[mi.i]) usedSel++; if(sel[mi.i]&&near[mi.i]) nearHit.push(mi.i); }
+    }
+    for(k=0;k<r.s.length;k++){
+      var si=r.s[k];
+      if(!have(si.i)) missSub.push(si.i);
+      else { if(sel[si.i]) usedSel++; if(sel[si.i]&&near[si.i]) nearHit.push(si.i); }
+    }
+    for(k=0;k<r.se.length;k++) if(!have(r.se[k])) missSeason.push(r.se[k]);
+
+    var missTotal = missMain.length+missSub.length+missSeason.length;
+    var mainRatio = r.m.length ? (r.m.length-missMain.length)/r.m.length : 1;
+    var subRatio  = r.s.length ? (r.s.length-missSub.length)/r.s.length  : 1;
+
+    /* ---- 分档 ---- */
+    var tier;
+    if(missTotal===0) tier=0;
+    else if(missTotal<=2 && missMain.length<=1) tier=1;
+    else if(mainRatio>=0.5) tier=2;
+    else continue;
+
+    /* ---- 打分 ---- */
+    var sc = 100 + 40*mainRatio + 15*subRatio;
+    sc += 25 * (usedSel / Math.max(1,S.selected.length));
+    sc += 8 * nearHit.length;
+    if(fav[r.id]) sc += 15;
+    sc -= 6 * missTotal;
+    if(last[r.id]){
+      var ago=(now-last[r.id])/DAY;
+      if(ago<=7) sc -= 30; else if(ago<=30) sc -= 10;
+    }
+    if(r.t>60) sc -= 5;
+
+    /* 营养目标专项加权 */
+    var nu=r.nu;
+    if(P.goal==='cut'){
+      sc += (nu.p*4/Math.max(1,nu.k))*120;
+      sc += (nu.k<=450 ? 12 : -15);
+    }else if(P.goal==='bulk'){
+      sc += nu.p*1.6;
+      if(nu.p>=20) sc += 12;
+    }else if(P.goal==='lowcarb'){
+      sc += (nu.c<=20 ? 14 : -(nu.c-20)*0.8);
+      if(r.cat==='staple') sc -= 18;
+    }
+
+    out.push({r:r, tier:tier, score:sc, missMain:missMain, missSub:missSub,
+              missSeason:missSeason, missTotal:missTotal, nearHit:nearHit});
+  }
+
+  /* ---- 排序 ---- */
+  var cmp;
+  if(S.sort==='kcal')      cmp=function(a,b){ return a.r.nu.k-b.r.nu.k; };
+  else if(S.sort==='time') cmp=function(a,b){ return a.r.t-b.r.t; };
+  else if(S.sort==='prot') cmp=function(a,b){ return b.r.nu.p-a.r.nu.p; };
+  else                     cmp=function(a,b){ return b.score-a.score; };
+  out.sort(function(a,b){ return (a.tier-b.tier) || cmp(a,b); });
+
+  return {list:out, hiddenTool:hiddenTool, hiddenAvoid:hiddenAvoid};
+}
+
+/* ==========================================================================
+   第 6 层 · 渲染
+   ========================================================================== */
+
+var TABS=[
+  {id:'pick',   n:'选食材', i:'🧺'},
+  {id:'dish',   n:'今天吃', i:'🍽️'},
+  {id:'kitchen',n:'我的厨房',i:'🧊'},
+  {id:'shop',   n:'买菜清单',i:'🛒'},
+  {id:'me',     n:'我的',   i:'⚙️'}
+];
+
+function renderTabs(){
+  var h='';
+  for(var i=0;i<TABS.length;i++){
+    var t=TABS[i], dot='';
+    if(t.id==='shop' && S.today.length) dot='<span class="dot">'+S.today.length+'</span>';
+    if(t.id==='kitchen'){
+      var n=0; for(var j=0;j<S.inventory.length;j++){ var st=invState(S.inventory[j]); if(st==='near'||st==='expired') n++; }
+      if(n) dot='<span class="dot">'+n+'</span>';
+    }
+    h+='<button data-tab="'+t.id+'" class="'+(S.tab===t.id?'on':'')+'"><i>'+t.i+'</i>'+t.n+dot+'</button>';
+  }
+  $('#tabbar').innerHTML=h;
+}
+
+function go(tab){ S.tab=tab; render(); window.scrollTo(0,0); }
+
+function render(){
+  renderTabs();
+  var m=$('#main');
+  if(S.tab==='pick')         m.innerHTML=viewPick();
+  else if(S.tab==='dish')    m.innerHTML=viewDish();
+  else if(S.tab==='kitchen') m.innerHTML=viewKitchen();
+  else if(S.tab==='shop')    m.innerHTML=viewShop();
+  else                       m.innerHTML=viewMe();
+}
+
+/* ---------- 存储不可用提示 ---------- */
+function storageBar(){
+  if(STORAGE_OK) return '';
+  return '<div class="alertbar" style="border-color:var(--danger);color:#7A2B22">'
+   + '<b>这个环境不让保存数据。</b>应用能正常用,但刷新页面后勾选、库存和偏好都会丢。'
+   + '把这个文件下载到本地、用浏览器直接打开就正常了(Safari 无痕模式也会有这个问题)。</div>';
+}
+
+/* ---------- 临期提醒条 ---------- */
+function alertBar(){
+  var near=[], exp=[];
+  for(var i=0;i<S.inventory.length;i++){
+    var it=S.inventory[i], st=invState(it);
+    if(st==='expired') exp.push(nameOf(it.ing));
+    else if(st==='near') near.push(nameOf(it.ing));
+  }
+  if(!near.length && !exp.length) return '';
+  var s='<div class="alertbar">';
+  if(exp.length) s+='<b>已过期:</b>'+esc(exp.join('、'))+'。';
+  if(near.length) s+='<b>快坏了:</b>'+esc(near.join('、'))+' —— 推荐里会优先给能消耗它们的菜。';
+  s+='</div>';
+  return s;
+}
+
+/* ---------- Tab 1:选食材 ----------
+   关键约束:搜索框必须留在「静态区」,绝对不能在 input 事件里被重建。
+   中文拼音输入法靠 composition 组字会话逐字成词,一旦 <input> 元素
+   被销毁重建,组字会话立刻中断 —— 表现就是「打不出中文」。
+   所以输入时只重绘 #pickBody,搜索框本身一动不动。 */
+function viewPick(){
+  var h='', i;
+  h+=storageBar();
+  h+=alertBar();
+
+  /* --- 静态区:搜索框(勿在 input 里重建) --- */
+  h+='<div class="searchwrap"><span class="mg">🔍</span>'
+   + '<input id="q" type="search" enterkeyhint="search"'
+   + ' autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"'
+   + ' placeholder="搜食材,拼音也行(tudou)" value="'+esc(S.q)+'">'
+   + '<button class="clr" id="qclr" style="display:'+(S.q?'':'none')+'">✕</button></div>';
+
+  /* --- 已选 chip 条(独立容器,便于局部重绘) --- */
+  h+='<div id="chipWrap">'+chipBar()+'</div>';
+
+  /* --- 动态区:只有这一块随搜索/分类切换重绘 --- */
+  h+='<div id="pickBody">'+pickBody()+'</div>';
+
+  /* --- 主 CTA(fixed,所以前面要放等高占位,不然挡住最后一排食材) --- */
+  h+='<div class="ctaspacer"></div>';
+  h+='<div class="stickycta"><div class="inner">'
+   + '<button class="btn wide" id="goDish">'+ctaText()+'</button></div></div>';
+  return h;
+}
+
+function chipBar(){
+  var h='', i;
+  h+='<div class="chipbar"><div class="hd"><b>家里现有</b>'
+   + '<span class="tag">'+S.selected.length+' 样</span><span class="grow"></span>';
+  if(S.inventory.length) h+='<button class="btn sm plain" id="fromInv">带入库存</button>';
+  if(S.selected.length)  h+=' <button class="btn sm plain" id="clrSel">清空</button>';
+  h+='</div>';
+  if(!S.selected.length){
+    h+='<div class="hint">还没选。下面点几样家里有的东西 —— 调味料默认算你都有,不用勾。</div>';
+  }else{
+    h+='<div class="chips">';
+    for(i=0;i<S.selected.length;i++){
+      var id=S.selected[i];
+      h+='<span class="chip" data-unsel="'+id+'"><b>'+emojiOf(id)+' '+esc(nameOf(id))+'</b><span>✕</span></span>';
+    }
+    h+='</div>';
+  }
+  return h+'</div>';
+}
+
+function ctaText(){
+  var mm=match(), n0=0;
+  for(var i=0;i<mm.list.length;i++) if(mm.list[i].tier===0) n0++;
+  return '看看能做什么 · 现在能做 '+n0+' 道';
+}
+
+/* 搜索匹配:中文名 / 别名 / 拼音(食材 id 本身就是无声调拼音)
+   打分排序,让前缀命中排在包含命中前面 */
+function searchIng(q){
+  var out=[], i, a;
+  for(i=0;i<ING.length;i++){
+    var g=ING[i], sc=-1;
+    if(g.n.indexOf(q)===0)      sc=100;   /* 中文名前缀 */
+    else if(g.n.indexOf(q)>0)   sc=90;    /* 中文名包含 */
+    else if(g.id.indexOf(q)===0)sc=80;    /* 拼音前缀,如 tudou */
+    if(sc<0 && g.al){
+      for(a=0;a<g.al.length;a++){
+        if(g.al[a].indexOf(q)===0){ sc=70; break; }
+        if(g.al[a].indexOf(q)>0){   sc=60; break; }
+      }
+    }
+    if(sc<0 && g.id.indexOf(q)>0) sc=40;  /* 拼音中段命中,权重最低 */
+    if(sc>=0) out.push({g:g,s:sc});
+  }
+  out.sort(function(x,y){ return y.s-x.s; });
+  var list=[];
+  for(i=0;i<out.length;i++) list.push(out[i].g);
+  return list;
+}
+
+function pickBody(){
+  var h='', i;
+  var q=S.q.trim().toLowerCase();
+
+  /* 分类导航(搜索时隐藏) */
+  if(!q){
+    h+='<div class="catnav">';
+    for(i=0;i<CATS.length;i++){
+      h+='<button data-pcat="'+CATS[i].id+'" class="'+(S.pickCat===CATS[i].id?'on':'')+'">'+CATS[i].name+'</button>';
+    }
+    h+='</div>';
+  }
+
+  /* 食材列表 */
+  var list=[];
+  if(q){
+    list=searchIng(q);
+  }else if(S.pickCat==='hot'){
+    for(i=0;i<ING.length;i++) if(ING[i].hot) list.push(ING[i]);
+  }else{
+    for(i=0;i<ING.length;i++) if(ING[i].cat===S.pickCat) list.push(ING[i]);
+  }
+
+  if(q){
+    h+='<div class="hint" style="margin-bottom:10px">搜到 <b>'+list.length+'</b> 项'
+     + (list.length?' —— 点一下就选上':'')+'</div>';
+  }else if(S.pickCat==='season'){
+    h+='<div class="hint" style="margin-bottom:10px">调味基础包'+(S.prefs.staples?'<b>已开启</b>':'已关闭')
+     + ':盐油糖、生抽老抽醋、料酒、葱姜蒜、淀粉、蚝油、冰糖、八角花椒等默认算你都有,不计入缺料。'
+     + '下面标「已有」的就是包内的。可以在「我的」里关掉改成严格模式。</div>';
+  }
+
+  if(!list.length){
+    h+='<div class="empty"><div class="big">🔍</div><h3>没找到「'+esc(S.q)+'」</h3>'
+     + '<p>试试更短的词,或者用拼音(比如 <b>tudou</b>、<b>xihongshi</b>),也可以直接在分类里翻。</p></div>';
+    return h;
+  }
+
+  var inv={}; for(i=0;i<S.inventory.length;i++) inv[S.inventory[i].ing]=S.inventory[i];
+  var selm={}; for(i=0;i<S.selected.length;i++) selm[S.selected[i]]=1;
+  h+='<div class="ings">';
+  for(i=0;i<list.length;i++){
+    var g2=list[i], on=selm[g2.id], badge='';
+    if(inv[g2.id]){
+      var st=invState(inv[g2.id]), rd=remainDays(inv[g2.id]);
+      if(st==='expired')   badge='<span class="badge danger">过期</span>';
+      else if(st==='near') badge='<span class="badge warn">'+rd+'天</span>';
+      else                 badge='<span class="badge inv">有</span>';
+    }else if(g2.pk && S.prefs.staples){
+      badge='<span class="badge inv">已有</span>';
+    }
+    h+='<button class="ing '+(on?'on':'')+'" data-ing="'+g2.id+'">'+badge
+     + '<em>'+g2.e+'</em><b>'+esc(g2.n)+'</b></button>';
+  }
+  h+='</div>';
+  return h;
+}
+
+/* ---------- 菜卡 ---------- */
+function dishCard(x){
+  var r=x.r, h='';
+  h+='<button class="dish" data-open="'+r.id+'">';
+  h+='<span class="viz" data-cat="'+r.cat+'">'+r.e+'</span>';
+  h+='<span class="body">';
+  h+='<span class="t1"><h3>'+esc(r.n)+'</h3>'+(inArr(S.favs,r.id)?'<span class="fav">★</span>':'')+'</span>';
+  h+='<span class="meta">'
+   + '<span class="tag">'+DCATS[r.cat]+'</span>'
+   + '<span class="tag line">'+r.t+' 分钟</span>'
+   + '<span class="tag line">难度 '+r.d+'</span>'
+   + (r.sp>0?'<span class="tag warn">辣 '+r.sp+'</span>':'')
+   + '</span>';
+  /* 热量单独一行:放进 .meta 会在有辣度标签时折行,同排卡片高度参差 */
+  h+='<span class="kcalrow">'+r.nu.k+' kcal/份</span>';
+  if(x.nearHit.length){
+    var nn=[]; for(var i=0;i<x.nearHit.length;i++) nn.push(nameOf(x.nearHit[i]));
+    h+='<span class="use">✓ 能消耗临期:'+esc(nn.join('、'))+'</span>';
+  }
+  if(x.missTotal){
+    var ms=[], a=x.missMain.concat(x.missSub).concat(x.missSeason);
+    for(i=0;i<a.length;i++) ms.push(nameOf(a[i]));
+    h+='<span class="miss"><b>差 '+x.missTotal+' 样:</b>'+esc(ms.join('、'))+'</span>';
+  }
+  h+='</span></button>';
+  return h;
+}
+
+/* ---------- Tab 2:今天吃 ---------- */
+function viewDish(){
+  var mm=match(), list=mm.list, h='';
+  var t0=[],t1=[],t2=[];
+  for(var i=0;i<list.length;i++){
+    if(list[i].tier===0) t0.push(list[i]);
+    else if(list[i].tier===1) t1.push(list[i]);
+    else t2.push(list[i]);
+  }
+
+  h+=alertBar();
+
+  /* 摆一摆结果 */
+  if(S.roll){
+    var rr=recOf(S.roll);
+    if(rr){
+      h+='<div class="roll" id="rollBox"><div class="face">'+rr.e+'</div>'
+       + '<h3>'+esc(rr.n)+'</h3>'
+       + '<div class="hint">'+DCATS[rr.cat]+' · '+rr.t+' 分钟 · '+rr.nu.k+' kcal/份</div>'
+       + '<div style="display:flex;gap:8px;margin-top:12px">'
+       + '<button class="btn plain sm" id="rollAgain" style="flex:1">再摆一次</button>'
+       + '<button class="btn sm" data-open="'+rr.id+'" style="flex:1">就做这个</button></div></div>';
+    }
+  }
+
+  /* 一日配餐 */
+  if(S.dayPlan){
+    h+='<div class="sec"><div class="sec-h"><h2>今天这一桌</h2><span class="grow"></span>'
+     + '<span class="n">合计 '+S.dayPlan.kcal+' kcal</span></div><div class="plan">';
+    var slots=['荤','素','汤·主食'];
+    for(i=0;i<S.dayPlan.ids.length;i++){
+      var pr=recOf(S.dayPlan.ids[i]); if(!pr) continue;
+      h+='<div class="planrow"><span class="slot">'+slots[i]+'</span><em>'+pr.e+'</em>'
+       + '<span class="nm"><b>'+esc(pr.n)+'</b><span>'+pr.t+' 分钟 · '+pr.nu.k+' kcal/份</span></span>'
+       + '<button class="btn sm plain" data-swap="'+i+'">换</button>'
+       + '<button class="btn sm plain" data-open="'+pr.id+'">看</button></div>';
+    }
+    h+='</div><div style="display:flex;gap:8px;margin-top:10px">'
+     + '<button class="btn plain sm" id="planAdd">整桌加入今天做</button>'
+     + '<button class="btn plain sm" id="planClose">收起</button></div></div>';
+  }
+
+  /* 操作条 */
+  h+='<div class="sec"><div class="seg" style="margin-bottom:10px">'
+   + '<button data-sort="match" class="'+(S.sort==='match'?'on':'')+'">匹配度</button>'
+   + '<button data-sort="kcal"  class="'+(S.sort==='kcal' ?'on':'')+'">低热量</button>'
+   + '<button data-sort="time"  class="'+(S.sort==='time' ?'on':'')+'">省时间</button>'
+   + '<button data-sort="prot"  class="'+(S.sort==='prot' ?'on':'')+'">高蛋白</button>'
+   + '</div>'
+   + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+   + '<button class="btn plain sm" id="btnRoll2">🎲 摆一摆</button>'
+   + '<button class="btn plain sm" id="btnDay">🍱 配一桌</button>'
+   + '<button class="btn plain sm" id="btnWeek">📅 一周菜单</button>'
+   + '</div></div>';
+
+  if(!list.length){
+    h+='<div class="empty"><div class="big">🧺</div><h3>先告诉我家里有什么</h3>'
+     + '<p>去「选食材」勾几样,哪怕只勾一个鸡蛋也能出菜。'
+     + '调味料不用勾,默认算你都有。</p>'
+     + '<button class="btn" id="toPick">去选食材</button></div>';
+    if(!S.selected.length){
+      h+='<div class="sec" style="margin-top:18px"><div class="sec-h"><h2>只要一样就能做</h2></div>'
+       + '<div class="hint" style="margin-bottom:10px">这几道菜只需要一样主料 + 基础调味,可以直接点开看:</div>'
+       + '<div class="dishes">';
+      var quick=['danchaofan','yangchunmian','zhengshuidan','shousibaocai','culiutudousi','zhengnangua'];
+      for(i=0;i<quick.length;i++){
+        var qr=recOf(quick[i]); if(!qr) continue;
+        h+=dishCard({r:qr,tier:0,score:0,missMain:[],missSub:[],missSeason:[],missTotal:0,nearHit:[]});
+      }
+      h+='</div></div>';
+    }
+  }else{
+    var groups=[
+      {t:'现在就能做', w:'需要的东西你都有',              a:t0},
+      {t:'差一两样',   w:'补一两样就行,缺什么写在卡上',  a:t1},
+      {t:'凑一凑也行', w:'主料有一半,少点配料也能吃',    a:t2}
+    ];
+    if(!t0.length && !t1.length && t2.length){
+      h+='<div class="alertbar">完全够料的菜暂时没有 —— 下面是<b>凑一凑</b>档。再勾两样主料通常就会有直接能做的菜。</div>';
+    }
+    for(var gi=0; gi<groups.length; gi++){
+      var g=groups[gi]; if(!g.a.length) continue;
+      h+='<div class="tier"><div class="tier-h"><h2>'+g.t+'</h2>'
+       + '<span class="n">'+g.a.length+' 道</span><span class="why">'+g.w+'</span></div><div class="dishes">';
+      for(i=0;i<g.a.length;i++) h+=dishCard(g.a[i]);
+      h+='</div></div>';
+    }
+  }
+
+  /* 被隐藏的提示 */
+  if(mm.hiddenTool){
+    h+='<div class="hint" style="border-top:1px solid var(--line);padding-top:10px;margin-top:6px">'
+     + '另有 <b>'+mm.hiddenTool+'</b> 道菜需要你没勾选的厨具,已隐藏。'
+     + '<button class="btn sm plain" id="ignTool" style="margin-left:8px">忽略厨具限制</button></div>';
+  }
+  h+='<div class="hint" style="margin-top:14px;color:var(--ink-3)">热量与营养为按配方用量的估算值,误差约 ±15%,当趋势参考用,别当计数依据。</div>';
+  return h;
+}
+
+/* ---------- Tab 3:我的厨房 ---------- */
+function viewKitchen(){
+  var h='';
+  h+=alertBar();
+  h+='<div class="sec"><div class="sec-h"><h2>我的厨房</h2><span class="grow"></span>'
+   + '<span class="n">'+S.inventory.length+' 样</span></div>'
+   + '<div class="hint" style="margin-bottom:12px">长期记录家里有什么,不用每次重新勾。'
+   + '录入只问一句「还能放几天」—— 不问生产日期,不问保质期。</div>'
+   + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+   + '<button class="btn sm" id="invAdd">+ 添加食材</button>';
+  if(S.inventory.length){
+    h+='<button class="btn sm plain" id="invToSel">全部带入本次选择</button>'
+     + '<button class="btn sm plain" id="invClear">清空库存</button>';
+  }
+  h+='</div></div>';
+
+  if(!S.inventory.length){
+    h+='<div class="empty"><div class="big">🧊</div><h3>库存是空的</h3>'
+     + '<p>把家里常备的东西记进来,以后打开就不用重新勾一遍,'
+     + '快坏了的还会主动提醒你先吃掉。</p></div>';
+    return h;
+  }
+
+  var arr=S.inventory.slice().sort(function(a,b){ return remainDays(a)-remainDays(b); });
+  h+='<div class="card" style="padding:4px 12px"><ul class="invlist">';
+  for(var i=0;i<arr.length;i++){
+    var it=arr[i], st=invState(it), rd=remainDays(it), tg;
+    if(st==='expired')   tg='<span class="tag danger">已过期</span>';
+    else if(st==='near') tg='<span class="tag warn">还剩 '+rd+' 天</span>';
+    else if(rd>=999)     tg='<span class="tag">长期</span>';
+    else                 tg='<span class="tag ok">还剩 '+rd+' 天</span>';
+    h+='<li><em>'+emojiOf(it.ing)+'</em>'
+     + '<span class="nm"><b>'+esc(nameOf(it.ing))+'</b>'
+     + '<span>'+(rd>=999?'不易坏':'录入时设为 '+it.days+' 天')+'</span></span>'
+     + tg
+     + '<button class="iconbtn" data-invref="'+it.ing+'" title="重设天数">↻</button>'
+     + '<button class="iconbtn" data-invdel="'+it.ing+'" title="删除">✕</button></li>';
+  }
+  h+='</ul></div>';
+  return h;
+}
+
+/* ---------- Tab 4:买菜清单 ---------- */
+function buildShop(){
+  var have=buildHave(), acc={}, order=[], kcal=0, names=[];
+  for(var i=0;i<S.today.length;i++){
+    var r=recOf(S.today[i]); if(!r) continue;
+    names.push(r.n); kcal += r.nu.k*S.prefs.servings;
+    var items=r.m.concat(r.s);
+    for(var j=0;j<items.length;j++){
+      var it=items[j]; if(have(it.i)) continue;
+      var key=it.i+'|'+it.u;
+      if(!acc[key]){ acc[key]={ing:it.i,unit:it.u,qty:0,from:[]}; order.push(key); }
+      acc[key].qty += scaleQty(it.q,it.u,S.prefs.servings);
+      if(acc[key].from.indexOf(r.n)<0) acc[key].from.push(r.n);
+    }
+    for(j=0;j<r.se.length;j++){
+      var sid=r.se[j]; if(have(sid)) continue;
+      var k2=sid+'|适量';
+      if(!acc[k2]){ acc[k2]={ing:sid,unit:'适量',qty:0,from:[]}; order.push(k2); }
+      if(acc[k2].from.indexOf(r.n)<0) acc[k2].from.push(r.n);
+    }
+  }
+  var rows=[]; for(i=0;i<order.length;i++) rows.push(acc[order[i]]);
+  rows.sort(function(a,b){
+    var ca=IMAP[a.ing]?IMAP[a.ing].cat:'zz', cb=IMAP[b.ing]?IMAP[b.ing].cat:'zz';
+    return ca<cb?-1:(ca>cb?1:0);
+  });
+  return {rows:rows, kcal:kcal, names:names};
+}
+
+function shopText(){
+  var d=buildShop(), byCat={}, ord=[];
+  for(var i=0;i<d.rows.length;i++){
+    var row=d.rows[i], g=IMAP[row.ing], cn='其他';
+    if(g) for(var c=0;c<CATS.length;c++) if(CATS[c].id===g.cat) cn=CATS[c].name;
+    if(!byCat[cn]){ byCat[cn]=[]; ord.push(cn); }
+    byCat[cn].push(nameOf(row.ing)+' '+(row.unit==='适量'?'适量':fmtQty(row.qty)+row.unit));
+  }
+  var s='买菜清单（'+d.names.join('、')+'，'+S.prefs.servings+'人份）\n';
+  for(i=0;i<ord.length;i++) s+='\n【'+ord[i]+'】\n'+byCat[ord[i]].join('\n')+'\n';
+  return s;
+}
+
+function viewShop(){
+  var h='';
+  h+='<div class="sec"><div class="sec-h"><h2>买菜清单</h2><span class="grow"></span>'
+   + '<span class="n">'+S.prefs.servings+' 人份</span></div>';
+  if(!S.today.length){
+    h+='<div class="empty"><div class="big">🛒</div><h3>还没决定做什么</h3>'
+     + '<p>在推荐结果里点开一道菜,选「加入今天做」。'
+     + '几道菜缺的料会自动合并去重成一张清单。</p>'
+     + '<button class="btn" id="toDish">去看推荐</button></div></div>';
+    return h;
+  }
+  var d=buildShop();
+
+  /* 今天做的菜 */
+  h+='<div class="plan" style="margin-bottom:12px">';
+  for(var i=0;i<S.today.length;i++){
+    var r=recOf(S.today[i]); if(!r) continue;
+    h+='<div class="planrow"><em>'+r.e+'</em>'
+     + '<span class="nm"><b>'+esc(r.n)+'</b><span>'+DCATS[r.cat]+' · '+r.t+' 分钟 · '
+     + r.nu.k+' kcal/份 · 合计 '+(r.nu.k*S.prefs.servings)+' kcal</span></span>'
+     + '<button class="btn sm plain" data-open="'+r.id+'">看</button>'
+     + '<button class="iconbtn" data-untoday="'+r.id+'">✕</button></div>';
+  }
+  h+='</div>';
+  h+='<div class="statbar"><div><b>'+S.today.length+'</b><span>道菜</span></div>'
+   + '<div><b>'+d.kcal+'</b><span>合计 KCAL</span></div>'
+   + '<div><b>'+Math.round(d.kcal/S.prefs.servings)+'</b><span>每人 KCAL</span></div>'
+   + '<div><b>'+d.rows.length+'</b><span>样要买</span></div></div>';
+  h+='</div>';
+
+  /* 清单 */
+  if(!d.rows.length){
+    h+='<div class="empty"><div class="big">✅</div><h3>什么都不用买</h3>'
+     + '<p>这几道菜需要的东西你都有了,直接开做。</p></div>';
+  }else{
+    var byCat={}, ord=[];
+    for(i=0;i<d.rows.length;i++){
+      var row=d.rows[i], g=IMAP[row.ing], cn='其他';
+      if(g) for(var c=0;c<CATS.length;c++) if(CATS[c].id===g.cat) cn=CATS[c].name;
+      if(!byCat[cn]){ byCat[cn]=[]; ord.push(cn); }
+      byCat[cn].push(row);
+    }
+    for(var oi=0;oi<ord.length;oi++){
+      h+='<div class="sec"><div class="sec-h"><h2>'+ord[oi]+'</h2>'
+       + '<span class="n">'+byCat[ord[oi]].length+' 样</span></div>'
+       + '<div class="card" style="padding:4px 12px"><ul class="shop">';
+      var g3=byCat[ord[oi]];
+      for(i=0;i<g3.length;i++){
+        var rw=g3[i], key=rw.ing+'|'+rw.unit, done=!!S.shopDone[key];
+        h+='<li class="'+(done?'done':'')+'" data-shop="'+esc(key)+'">'
+         + '<span class="cb '+(done?'on':'')+'">✓</span>'
+         + '<span class="nm">'+emojiOf(rw.ing)+' '+esc(nameOf(rw.ing))+'</span>'
+         + '<span class="tag line">'+(rw.unit==='适量'?'适量':esc(fmtQty(rw.qty)+rw.unit))+'</span></li>';
+      }
+      h+='</ul></div></div>';
+    }
+    h+='<div style="display:flex;gap:8px;flex-wrap:wrap">'
+     + '<button class="btn" id="copyShop">复制清单</button>'
+     + '<button class="btn plain" id="clearToday">清空今天做</button></div>';
+  }
+  return h;
+}
+
+/* ---------- Tab 5:我的 ---------- */
+function viewMe(){
+  var P=S.prefs, h='', i;
+  h+=storageBar();
+
+  h+='<div class="sec"><div class="sec-h"><h2>份数</h2><span class="grow"></span>'
+   + '<span class="n">用量与合计热量按这个换算</span></div><div class="seg">';
+  var sv=[1,2,3,4,6];
+  for(i=0;i<sv.length;i++) h+='<button data-sv="'+sv[i]+'" class="'+(P.servings===sv[i]?'on':'')+'">'+sv[i]+' 人</button>';
+  h+='</div></div>';
+
+  h+='<div class="sec"><div class="sec-h"><h2>营养目标</h2></div><div class="seg">'
+   + '<button data-goal="balance" class="'+(P.goal==='balance'?'on':'')+'">均衡</button>'
+   + '<button data-goal="cut"     class="'+(P.goal==='cut'    ?'on':'')+'">减脂</button>'
+   + '<button data-goal="bulk"    class="'+(P.goal==='bulk'   ?'on':'')+'">增肌</button>'
+   + '<button data-goal="lowcarb" class="'+(P.goal==='lowcarb'?'on':'')+'">控糖</button>'
+   + '</div>'
+   + '<div class="row"><span class="lab"><b>每份热量上限</b>'
+   + '<span>超过这个数的菜直接不显示。留空表示不限制。</span></span>'
+   + '<input id="kcalCap" type="number" inputmode="numeric" placeholder="不限" value="'
+   + (P.kcalCap||'')+'" style="width:96px;min-height:40px;text-align:center;border:1px solid var(--line-2);border-radius:4px;background:var(--surface)"></div>'
+   + '</div>';
+
+  h+='<div class="sec"><div class="sec-h"><h2>忌口与偏好</h2></div><div class="card" style="padding:2px 12px">'
+   + '<div class="row"><span class="lab"><b>素食模式</b><span>排除含肉、禽、水产的菜(蛋奶不排除)</span></span>'
+   + '<button class="sw '+(P.vegetarian?'on':'')+'" data-tg="vegetarian"></button></div>'
+   + '<div class="row"><span class="lab"><b>清真模式</b><span>排除含猪肉及料酒的菜</span></span>'
+   + '<button class="sw '+(P.halal?'on':'')+'" data-tg="halal"></button></div>'
+   + '<div class="row"><span class="lab"><b>能吃多辣</b><span>0 = 一点都不要,3 = 都行</span></span></div>'
+   + '<div style="padding-bottom:12px"><div class="seg">';
+  for(i=0;i<=3;i++) h+='<button data-spicy="'+i+'" class="'+(P.maxSpicy===i?'on':'')+'">'+(i===0?'不吃辣':i===3?'都行':'辣度 '+i)+'</button>';
+  h+='</div></div></div>';
+  h+='<div style="margin-top:10px"><button class="btn plain sm" id="editAvoid">设置忌口食材'
+   + (P.avoid.length?' ('+P.avoid.length+')':'')+'</button></div>';
+  if(P.avoid.length){
+    h+='<div class="chips" style="margin-top:8px">';
+    for(i=0;i<P.avoid.length;i++)
+      h+='<span class="chip" data-unavoid="'+P.avoid[i]+'" style="border-color:var(--danger);color:var(--danger);background:#F6E7E4"><b>'
+       + esc(nameOf(P.avoid[i]))+'</b><span>✕</span></span>';
+    h+='</div>';
+  }
+  h+='</div>';
+
+  h+='<div class="sec"><div class="sec-h"><h2>厨具</h2><span class="grow"></span>'
+   + '<span class="n">设一次就行,之后默默过滤</span></div><div class="ings">';
+  for(i=0;i<TOOLS.length;i++){
+    var t=TOOLS[i], on=inArr(P.tools,t.id);
+    h+='<button class="ing '+(on?'on':'')+'" data-tool="'+t.id+'"><em>'+t.emoji+'</em><b>'+t.name+'</b></button>';
+  }
+  h+='</div><div class="card" style="padding:2px 12px;margin-top:10px">'
+   + '<div class="row"><span class="lab"><b>忽略厨具限制</b><span>打开后即使没勾对应厨具也照样推荐</span></span>'
+   + '<button class="sw '+(P.ignoreTools?'on':'')+'" data-tg="ignoreTools"></button></div></div></div>';
+
+  h+='<div class="sec"><div class="sec-h"><h2>调味基础包</h2></div>'
+   + '<div class="card" style="padding:2px 12px"><div class="row"><span class="lab"><b>默认视为家里都有</b>'
+   + '<span>盐油糖、生抽老抽醋、料酒、葱姜蒜、淀粉、蚝油、鸡精、香油、冰糖、八角花椒等 20 样。'
+   + '关掉会变成严格模式:调味料也要自己勾,几乎每道菜都会显示缺料。</span></span>'
+   + '<button class="sw '+(P.staples?'on':'')+'" data-tg="staples"></button></div></div></div>';
+
+  /* 收藏 */
+  h+='<div class="sec"><div class="sec-h"><h2>收藏</h2><span class="grow"></span><span class="n">'+S.favs.length+' 道</span></div>';
+  if(!S.favs.length) h+='<div class="hint">还没收藏。在菜谱详情页点「收藏」,以后推荐里会小幅优先。</div>';
+  else{
+    h+='<div class="plan">';
+    for(i=0;i<S.favs.length;i++){
+      var fr=recOf(S.favs[i]); if(!fr) continue;
+      h+='<div class="planrow"><em>'+fr.e+'</em><span class="nm"><b>'+esc(fr.n)+'</b>'
+       + '<span>'+DCATS[fr.cat]+' · '+fr.nu.k+' kcal/份</span></span>'
+       + '<button class="btn sm plain" data-open="'+fr.id+'">看</button></div>';
+    }
+    h+='</div>';
+  }
+  h+='</div>';
+
+  /* 历史 */
+  h+='<div class="sec"><div class="sec-h"><h2>做过的菜</h2><span class="grow"></span>';
+  if(S.history.length) h+='<button class="btn sm plain" id="clrHist">清空</button>';
+  h+='</div>';
+  if(!S.history.length) h+='<div class="hint">还没有记录。做菜模式走完最后一步会自动记一条,之后 7 天内不会再重复推荐同一道。</div>';
+  else{
+    var hs=S.history.slice().sort(function(a,b){ return b.at-a.at; }).slice(0,20);
+    h+='<div class="card" style="padding:4px 12px"><ul class="invlist">';
+    for(i=0;i<hs.length;i++){
+      var hr=recOf(hs[i].id); if(!hr) continue;
+      var ago=Math.floor((Date.now()-hs[i].at)/DAY);
+      h+='<li><em>'+hr.e+'</em><span class="nm"><b>'+esc(hr.n)+'</b>'
+       + '<span>'+(ago<=0?'今天':ago+' 天前')+'</span></span>'
+       + '<button class="btn sm plain" data-open="'+hr.id+'">再做</button></li>';
+    }
+    h+='</ul></div>';
+  }
+  h+='</div>';
+
+  /* 数据 */
+  h+='<div class="sec"><div class="sec-h"><h2>数据</h2></div>'
+   + '<div class="hint" style="margin-bottom:10px">所有数据只存在这台设备的浏览器里,不上传任何服务器。'
+   + '换设备可以用导出/导入搬过去。</div>'
+   + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+   + '<button class="btn plain sm" id="expData">导出数据</button>'
+   + '<button class="btn plain sm" id="impData">导入数据</button>'
+   + '<button class="btn plain sm" id="resetAll" style="border-color:var(--danger);color:var(--danger)">全部重置</button>'
+   + '</div></div>';
+
+  h+='<div class="hint" style="color:var(--ink-3);border-top:1px solid var(--line);padding-top:12px">'
+   + '菜谱库 '+RECIPES.length+' 道 · 食材库 '+ING.length+' 项 · 完全离线运行,无任何网络请求。<br>'
+   + '热量与营养为按配方用量的估算值,误差约 ±15%。</div>';
+  return h;
+}
+
+/* ==========================================================================
+   第 7 层 · 菜谱详情(抽屉)
+   ========================================================================== */
+
+/* iOS 上 body{overflow:hidden} 锁不住滚动,必须 position:fixed + 记住偏移 */
+var LOCK_Y=0;
+function lockScroll(on){
+  var b=document.body;
+  if(on){
+    if(b.style.position==='fixed') return;
+    LOCK_Y=window.scrollY||window.pageYOffset||0;
+    b.style.position='fixed'; b.style.top=(-LOCK_Y)+'px';
+    b.style.left='0'; b.style.right='0'; b.style.width='100%';
+  }else{
+    if(b.style.position!=='fixed') return;
+    b.style.position=''; b.style.top=''; b.style.left=''; b.style.right=''; b.style.width='';
+    window.scrollTo(0,LOCK_Y);
+  }
+}
+
+function openSheet(title, body, foot){
+  $('#sheetTitle').textContent=title;
+  $('#sheetBody').innerHTML=body;
+  $('#sheetFoot').innerHTML=foot||'';
+  $('#scrim').classList.add('on');
+  $('#sheet').classList.add('on');
+  $('#sheetBody').scrollTop=0;
+  lockScroll(true);
+}
+function closeSheet(){
+  $('#scrim').classList.remove('on');
+  $('#sheet').classList.remove('on');
+  S.openId=null;
+  if(!$('#cook').classList.contains('on')) lockScroll(false);
+}
+
+function openRecipe(id){
+  var r=recOf(id); if(!r) return;
+  S.openId=id;
+  var have=buildHave(), sv=S.prefs.servings, h='', i;
+
+  h+='<div class="hero viz" data-cat="'+r.cat+'">'+r.e+'</div>';
+  h+='<div class="statbar">'
+   + '<div><b>'+r.t+'</b><span>分钟</span></div>'
+   + '<div><b>'+sv+'</b><span>人份</span></div>'
+   + '<div><b>'+r.nu.k+'</b><span>KCAL/份</span></div>'
+   + '<div><b>'+r.d+'</b><span>难度 1-5</span></div></div>';
+
+  h+='<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px">'
+   + '<span class="tag">'+DCATS[r.cat]+'</span><span class="tag">'+esc(r.cu)+'</span>'
+   + (r.sp>0?'<span class="tag warn">辣度 '+r.sp+'</span>':'<span class="tag ok">不辣</span>');
+  for(i=0;i<r.tl.length;i++){
+    for(var t=0;t<TOOLS.length;t++) if(TOOLS[t].id===r.tl[i])
+      h+='<span class="tag line">'+TOOLS[t].emoji+' '+TOOLS[t].name+'</span>';
+  }
+  for(i=0;i<r.tg.length;i++) h+='<span class="tag line">'+esc(r.tg[i])+'</span>';
+  h+='</div>';
+
+  /* 份数切换 */
+  h+='<div class="grp-h">份数</div><div class="seg" style="margin-bottom:6px">';
+  var svs=[1,2,3,4,6];
+  for(i=0;i<svs.length;i++) h+='<button data-sv="'+svs[i]+'" class="'+(sv===svs[i]?'on':'')+'">'+svs[i]+' 人</button>';
+  h+='</div><div class="hint" style="margin-bottom:16px">每份 '+r.nu.k+' kcal · 这一锅合计 <b>'+(r.nu.k*sv)+' kcal</b></div>';
+
+  /* 食材 */
+  function igRows(arr,label){
+    if(!arr.length) return '';
+    var s='<div class="grp-h">'+label+'</div><ul class="iglist">';
+    for(var j=0;j<arr.length;j++){
+      var it=arr[j], lack=!have(it.i), sub=lack?subFor(r,it.i):'';
+      s+='<li class="'+(lack?'lack':'')+'"><span class="nm">'+emojiOf(it.i)+' '+esc(nameOf(it.i))
+       + (lack?' <span class="tag danger">缺</span>':'')
+       + (sub?'<span class="sub">替代 · '+esc(sub)+'</span>':'')
+       + '</span><span class="qt">'+esc(qtyText(it,sv))+'</span></li>';
+    }
+    return s+'</ul>';
+  }
+  h+=igRows(r.m,'主料');
+  h+=igRows(r.s,'辅料');
+  if(r.se.length){
+    h+='<div class="grp-h">调味</div><ul class="iglist">';
+    for(i=0;i<r.se.length;i++){
+      var sid=r.se[i], lack2=!have(sid), sub2=lack2?subFor(r,sid):'';
+      h+='<li class="'+(lack2?'lack':'')+'"><span class="nm">'+emojiOf(sid)+' '+esc(nameOf(sid))
+       + (lack2?' <span class="tag danger">缺</span>':(PACK[sid]&&S.prefs.staples?' <span class="tag">基础包</span>':''))
+       + (sub2?'<span class="sub">替代 · '+esc(sub2)+'</span>':'')
+       + '</span><span class="qt">适量</span></li>';
+    }
+    h+='</ul>';
+  }
+
+  /* 步骤 */
+  h+='<hr class="rule"><div class="grp-h">做法 · '+r.st.length+' 步</div><ul class="steps">';
+  for(i=0;i<r.st.length;i++){
+    h+='<li><span class="no">'+(i+1)+'</span><span class="tx">'+esc(r.st[i].t)
+     + (r.st[i].m?'<span class="mn">约 '+r.st[i].m+' 分钟</span>':'')+'</span></li>';
+  }
+  h+='</ul>';
+
+  /* 小贴士 */
+  if(r.tp) h+='<hr class="rule"><div class="grp-h">关键</div><div class="tipbox">'+esc(r.tp)+'</div>';
+
+  /* 营养 */
+  var nu=r.nu, pk=nu.p*4, fk=nu.f*9, ck=nu.c*4, tot=Math.max(1,pk+fk+ck);
+  h+='<hr class="rule"><div class="grp-h">每份营养 · 估算</div><div class="nutr">'
+   + '<div class="bar"><span class="k">蛋白质</span><span class="tr"><span class="fl" style="width:'
+   + Math.round(pk/tot*100)+'%;background:#5C7A4A"></span></span><span class="v">'+nu.p+' g</span></div>'
+   + '<div class="bar"><span class="k">脂肪</span><span class="tr"><span class="fl" style="width:'
+   + Math.round(fk/tot*100)+'%;background:#C2703D"></span></span><span class="v">'+nu.f+' g</span></div>'
+   + '<div class="bar"><span class="k">碳水</span><span class="tr"><span class="fl" style="width:'
+   + Math.round(ck/tot*100)+'%;background:#A9673A"></span></span><span class="v">'+nu.c+' g</span></div>'
+   + '</div><div class="hint" style="margin-top:8px;color:var(--ink-3)">'
+   + '按配方用量与常用食材成分表推算,误差约 ±15%。同一道菜肥瘦比例不同,热量能差三成。</div>';
+
+  var fav=inArr(S.favs,r.id), inToday=inArr(S.today,r.id);
+  var foot='<button class="btn plain" id="sfFav">'+(fav?'★ 已收藏':'☆ 收藏')+'</button>'
+   + '<button class="btn plain" id="sfToday">'+(inToday?'✓ 在清单里':'+ 今天做')+'</button>'
+   + '<button class="btn" id="sfCook">开始做菜</button>';
+
+  openSheet(r.n, h, foot);
+}
+
+/* ---------- 忌口设置抽屉 ---------- */
+function openAvoid(){
+  var h='<div class="hint" style="margin-bottom:12px">选中的食材会<b>硬排除</b> —— 含它的菜不会出现在任何档位里。'
+   + '常见的忌口已经放在最前面。</div>';
+  var common=['xiangcai','cong','jiang','suan','jianjiao','ganlajiao','lajiaomian','huajiao',
+              'doubanjiang','yangrou','kugua','qiezi','xiangchang','pidan','xiandan','zhimajiang'];
+  h+='<div class="grp-h">常见忌口</div><div class="ings">';
+  for(var i=0;i<common.length;i++){
+    var g=IMAP[common[i]]; if(!g) continue;
+    h+='<button class="ing '+(inArr(S.prefs.avoid,g.id)?'on':'')+'" data-av="'+g.id+'">'
+     + '<em>'+g.e+'</em><b>'+esc(g.n)+'</b></button>';
+  }
+  h+='</div>';
+  for(var c=0;c<CATS.length;c++){
+    var cid=CATS[c].id; if(cid==='hot') continue;
+    var arr=[]; for(i=0;i<ING.length;i++) if(ING[i].cat===cid) arr.push(ING[i]);
+    if(!arr.length) continue;
+    h+='<div class="grp-h">'+CATS[c].name+'</div><div class="ings">';
+    for(i=0;i<arr.length;i++)
+      h+='<button class="ing '+(inArr(S.prefs.avoid,arr[i].id)?'on':'')+'" data-av="'+arr[i].id+'">'
+       + '<em>'+arr[i].e+'</em><b>'+esc(arr[i].n)+'</b></button>';
+    h+='</div>';
+  }
+  openSheet('忌口食材', h, '<button class="btn" id="sfDone">完成</button>');
+}
+
+/* ---------- 库存录入抽屉 ---------- */
+function openInvAdd(pre){
+  var h='';
+  if(pre){
+    var g=IMAP[pre];
+    h+='<div class="hint" style="margin-bottom:10px"><b>'+g.e+' '+esc(g.n)+'</b> 还能放几天?</div>'
+     + '<div class="daybtns">'
+     + '<button data-day="1|'+pre+'">1 天</button><button data-day="3|'+pre+'">3 天</button>'
+     + '<button data-day="7|'+pre+'">1 周</button><button data-day="14|'+pre+'">2 周</button>'
+     + '<button data-day="30|'+pre+'">1 个月</button><button data-day="999|'+pre+'">长期</button>'
+     + '</div><div class="hint" style="margin-top:10px">建议:'+(g.sd||7)+' 天(按这类食材的常见情况)</div>';
+    openSheet('还能放几天', h, '');
+    return;
+  }
+  h+='<div class="hint" style="margin-bottom:12px">点一样食材,然后选「还能放几天」。就这两步。</div>';
+  var inv={}; for(var i=0;i<S.inventory.length;i++) inv[S.inventory[i].ing]=1;
+  for(var c=0;c<CATS.length;c++){
+    var cid=CATS[c].id; if(cid==='season') continue;
+    var arr=[];
+    if(cid==='hot'){ for(i=0;i<ING.length;i++) if(ING[i].hot) arr.push(ING[i]); }
+    else { for(i=0;i<ING.length;i++) if(ING[i].cat===cid) arr.push(ING[i]); }
+    if(!arr.length) continue;
+    h+='<div class="grp-h">'+CATS[c].name+'</div><div class="ings">';
+    for(i=0;i<arr.length;i++)
+      h+='<button class="ing '+(inv[arr[i].id]?'on':'')+'" data-invpick="'+arr[i].id+'">'
+       + (inv[arr[i].id]?'<span class="badge inv">有</span>':'')
+       + '<em>'+arr[i].e+'</em><b>'+esc(arr[i].n)+'</b></button>';
+    h+='</div>';
+  }
+  openSheet('添加到库存', h, '<button class="btn" id="sfDone">完成</button>');
+}
+
+/* ---------- 一周菜单抽屉 ---------- */
+function openWeek(){
+  var mm=match(), pool=[];
+  for(var i=0;i<mm.list.length;i++) if(mm.list[i].tier<=1) pool.push(mm.list[i].r);
+  if(pool.length<6) for(i=0;i<mm.list.length;i++) if(mm.list[i].tier===2) pool.push(mm.list[i].r);
+
+  var meaty=[], veg=[];
+  for(i=0;i<pool.length;i++) (isMeaty(pool[i])?meaty:veg).push(pool[i]);
+  shuffle(meaty); shuffle(veg);
+
+  var days=['周一','周二','周三','周四','周五','周六','周日'], plan=[], used={};
+  function take(arr){ for(var j=0;j<arr.length;j++) if(!used[arr[j].id]){ used[arr[j].id]=1; return arr[j]; } return null; }
+  for(i=0;i<7;i++) plan.push({d:days[i], a:take(meaty), b:take(veg)});
+  S.weekPlan=plan; save();
+
+  var h='<div class="hint" style="margin-bottom:12px">每天一荤一素,一周内不重复。'
+   + '菜是从你现有食材能做的范围里挑的,所以基本都能直接做。</div><div class="plan">';
+  var kcal=0, ids=[];
+  for(i=0;i<plan.length;i++){
+    var p=plan[i];
+    h+='<div class="planrow"><span class="slot">'+p.d+'</span><span class="nm">';
+    if(p.a){ h+='<b>'+p.a.e+' '+esc(p.a.n)+'</b>'; kcal+=p.a.nu.k; ids.push(p.a.id); }
+    if(p.b){ h+='<span>'+p.b.e+' '+esc(p.b.n)+'</span>'; kcal+=p.b.nu.k; ids.push(p.b.id); }
+    if(!p.a&&!p.b) h+='<span class="muted">候选不够了,再多勾几样食材</span>';
+    h+='</span></div>';
+  }
+  h+='</div><div class="hint" style="margin-top:12px">共 '+ids.length+' 道,平均每人每天约 '
+   + (ids.length?Math.round(kcal/7):0)+' kcal(只算这两道菜,不含主食)。</div>';
+  openSheet('一周菜单', h,
+    '<button class="btn plain" id="wkRe">重新生成</button><button class="btn" id="wkShop">缺料合并进清单</button>');
+}
+
+function shuffle(a){
+  for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)), t=a[i]; a[i]=a[j]; a[j]=t; }
+  return a;
+}
+
+/* ==========================================================================
+   第 8 层 · 摆一摆 / 配一桌
+   ========================================================================== */
+
+function doRoll(){
+  var mm=match(), pool=[];
+  for(var i=0;i<mm.list.length;i++) if(mm.list[i].tier===0) pool.push(mm.list[i].r);
+  if(!pool.length) for(i=0;i<mm.list.length;i++) if(mm.list[i].tier===1) pool.push(mm.list[i].r);
+  if(!pool.length) for(i=0;i<mm.list.length;i++) pool.push(mm.list[i].r);
+  if(!pool.length){ toast('先去勾几样食材'); go('pick'); return; }
+
+  var fresh=[]; for(i=0;i<pool.length;i++) if(!inArr(S.rolled,pool[i].id)) fresh.push(pool[i]);
+  if(!fresh.length){
+    /* 候选耗尽:清空记录重新开始,但保留刚摆出的那道,
+       否则重置后可能立刻又摆到同一道,看起来像坏了 */
+    S.rolled = S.roll ? [S.roll] : [];
+    fresh=[]; for(i=0;i<pool.length;i++) if(!inArr(S.rolled,pool[i].id)) fresh.push(pool[i]);
+    if(!fresh.length) fresh=pool;   /* 池子里真的只剩一道菜 */
+  }
+  var pick=fresh[Math.floor(Math.random()*fresh.length)];
+  S.rolled.push(pick.id); S.roll=pick.id; S.tab='dish';
+  render();
+  var b=$('#rollBox'); if(b){ b.classList.add('spin'); setTimeout(function(){ b.classList.remove('spin'); },430); }
+  window.scrollTo(0,0);
+}
+
+function doDayPlan(){
+  var mm=match(), pool=[];
+  for(var i=0;i<mm.list.length;i++) if(mm.list[i].tier<=1) pool.push(mm.list[i].r);
+  if(pool.length<3) for(i=0;i<mm.list.length;i++) if(mm.list[i].tier===2) pool.push(mm.list[i].r);
+  if(pool.length<2){ toast('可做的菜太少,先多勾几样食材'); go('pick'); return; }
+
+  var meaty=[], veg=[], soupy=[];
+  for(i=0;i<pool.length;i++){
+    var r=pool[i];
+    if(r.cat==='soup'||r.cat==='staple') soupy.push(r);
+    else if(isMeaty(r)) meaty.push(r);
+    else veg.push(r);
+  }
+  shuffle(meaty); shuffle(veg); shuffle(soupy);
+  var ids=[], used={};
+  function pick(arr,fb){
+    var a=arr.length?arr:fb;
+    for(var j=0;j<a.length;j++) if(!used[a[j].id]){ used[a[j].id]=1; return a[j].id; }
+    return null;
+  }
+  var a1=pick(meaty,pool), a2=pick(veg,pool), a3=pick(soupy,pool);
+  if(a1) ids.push(a1); if(a2) ids.push(a2); if(a3) ids.push(a3);
+  var kcal=0; for(i=0;i<ids.length;i++){ var rr=recOf(ids[i]); if(rr) kcal+=rr.nu.k*S.prefs.servings; }
+  S.dayPlan={ids:ids, kcal:kcal}; S.tab='dish'; render(); window.scrollTo(0,0);
+}
+
+function swapPlanSlot(idx){
+  if(!S.dayPlan) return;
+  var mm=match(), pool=[];
+  for(var i=0;i<mm.list.length;i++) if(mm.list[i].tier<=1) pool.push(mm.list[i].r);
+  if(pool.length<3) for(i=0;i<mm.list.length;i++) if(mm.list[i].tier===2) pool.push(mm.list[i].r);
+  var cur=S.dayPlan.ids[idx], curR=recOf(cur), cand=[];
+  for(i=0;i<pool.length;i++){
+    var r=pool[i]; if(inArr(S.dayPlan.ids,r.id)) continue;
+    var same;
+    if(idx===2) same=(r.cat==='soup'||r.cat==='staple');
+    else if(idx===0) same=isMeaty(r)&&r.cat!=='soup'&&r.cat!=='staple';
+    else same=!isMeaty(r)&&r.cat!=='soup'&&r.cat!=='staple';
+    if(same) cand.push(r);
+  }
+  if(!cand.length){ toast('这一类没有别的候选了'); return; }
+  S.dayPlan.ids[idx]=cand[Math.floor(Math.random()*cand.length)].id;
+  var kcal=0; for(i=0;i<S.dayPlan.ids.length;i++){ var rr=recOf(S.dayPlan.ids[i]); if(rr) kcal+=rr.nu.k*S.prefs.servings; }
+  S.dayPlan.kcal=kcal; render();
+}
+
+/* ==========================================================================
+   第 9 层 · 做菜模式
+   ========================================================================== */
+
+function openCook(id){
+  var r=recOf(id); if(!r) return;
+  S.cookId=id; S.cookStep=0; stopTimer();
+  $('#cook').classList.add('on');
+  lockScroll(true);
+  requestWake();
+  renderCook();
+}
+function closeCook(){
+  stopTimer(); releaseWake();
+  $('#cook').classList.remove('on');
+  S.cookId=null;
+  lockScroll(false);
+  render();
+}
+
+function renderCook(){
+  var r=recOf(S.cookId); if(!r) return;
+  var n=r.st.length, i=S.cookStep, done=(i>=n);
+  var h='';
+  h+='<div class="cook-hd"><button class="iconbtn" id="ckClose">✕</button>'
+   + '<h2>'+esc(r.n)+'</h2>'
+   + '<span class="tag line">'+S.prefs.servings+' 人份</span></div>';
+  h+='<div class="prog"><i style="width:'+Math.round((done?n:i)/n*100)+'%"></i></div>';
+  h+='<div class="cook-bd">';
+
+  if(done){
+    h+='<div style="text-align:center">'
+     + '<div style="font-size:60px;line-height:1;margin-bottom:16px">'+r.e+'</div>'
+     + '<h2 style="font-size:24px;margin-bottom:8px">做好了</h2>'
+     + '<div class="hint" style="font-size:15px">每份 '+r.nu.k+' kcal,这一锅合计 '
+     + (r.nu.k*S.prefs.servings)+' kcal。已记入做过的菜,接下来一周不会再重复推荐它。</div></div>';
+  }else{
+    var st=r.st[i];
+    h+='<div class="stepno">第 '+(i+1)+' / '+n+' 步</div>';
+    h+='<div class="steptx">'+esc(st.t)+'</div>';
+    if(st.m){
+      h+='<div class="timer" id="tmBox"><span class="num" id="tmNum">'+fmtClock(S.timer?S.timerLeft:st.m*60)+'</span>'
+       + '<span class="grow"><div class="hint">这一步约 '+st.m+' 分钟</div></span>'
+       + '<button class="btn sm plain" id="tmBtn">'+(S.timer?'停止':'开始计时')+'</button></div>';
+    }
+    if(i===0){
+      var ing=[], a=r.m.concat(r.s);
+      for(var j=0;j<a.length;j++) ing.push(nameOf(a[j].i)+' '+qtyText(a[j],S.prefs.servings));
+      h+='<div class="ings-mini"><b>要用到:</b>'+esc(ing.join(' · '))+'</div>';
+    }
+  }
+  h+='</div>';
+
+  h+='<div class="cook-ft">';
+  if(done){
+    h+='<button class="btn plain" id="ckPrev">回上一步</button>'
+     + '<button class="btn" id="ckDone">完成</button>';
+  }else{
+    h+='<button class="btn plain" id="ckPrev"'+(i===0?' disabled':'')+'>上一步</button>'
+     + '<button class="btn" id="ckNext">'+(i===n-1?'做完了':'下一步')+'</button>';
+  }
+  h+='</div>';
+  $('#cook').innerHTML=h;
+}
+
+function fmtClock(s){
+  if(s<0) s=0;
+  var m=Math.floor(s/60), x=s%60;
+  return m+':'+(x<10?'0':'')+x;
+}
+function startTimer(sec){
+  stopTimer(); S.timerLeft=sec;
+  S.timer=setInterval(function(){
+    S.timerLeft--;
+    var el=$('#tmNum'); if(el) el.textContent=fmtClock(S.timerLeft);
+    if(S.timerLeft<=0){ stopTimer(); beep(); flashTitle(); renderCook(); toast('时间到'); }
+  },1000);
+  renderCook();
+}
+function stopTimer(){ if(S.timer){ clearInterval(S.timer); S.timer=null; } }
+
+/* iOS 必须在用户手势里创建/恢复 AudioContext,否则计时结束时静默无声。
+   所以「开始计时」那一下点击就把它备好并复用。 */
+var AUDIO=null;
+function ensureAudio(){
+  try{
+    var AC=window.AudioContext||window.webkitAudioContext; if(!AC) return null;
+    if(!AUDIO) AUDIO=new AC();
+    if(AUDIO.state==='suspended' && AUDIO.resume) AUDIO.resume();
+    return AUDIO;
+  }catch(e){ return null; }
+}
+function beep(){
+  try{
+    var ctx=ensureAudio(); if(!ctx) return;
+    for(var k=0;k<3;k++){
+      var o=ctx.createOscillator(), g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value=880; o.type='sine';
+      var t0=ctx.currentTime+k*0.35;
+      g.gain.setValueAtTime(0,t0);
+      g.gain.linearRampToValueAtTime(0.3,t0+0.02);
+      g.gain.linearRampToValueAtTime(0,t0+0.25);
+      o.start(t0); o.stop(t0+0.3);
+    }
+  }catch(e){}
+}
+function flashTitle(){
+  var old=document.title, n=0;
+  var iv=setInterval(function(){
+    document.title = (n%2 ? '⏰ 时间到!' : old); n++;
+    if(n>10){ clearInterval(iv); document.title=old; }
+  },600);
+}
+function requestWake(){
+  try{
+    if(navigator.wakeLock && navigator.wakeLock.request){
+      navigator.wakeLock.request('screen').then(function(w){ S.wakeLock=w; }).catch(function(){});
+    }
+  }catch(e){}
+}
+function releaseWake(){ try{ if(S.wakeLock){ S.wakeLock.release(); S.wakeLock=null; } }catch(e){} }
+
+/* ==========================================================================
+   第 10 层 · 事件绑定(统一委托)
+   ========================================================================== */
+
+function closest(el,attr){
+  while(el && el!==document.body){
+    if(el.getAttribute && el.getAttribute(attr)!==null) return el;
+    el=el.parentNode;
+  }
+  return null;
+}
+
+document.addEventListener('click', function(ev){
+  var t=ev.target, el;
+
+  /* --- Tab --- */
+  if((el=closest(t,'data-tab'))){ go(el.getAttribute('data-tab')); return; }
+
+  /* --- 选食材 --- */
+  if((el=closest(t,'data-ing'))){
+    toggleArr(S.selected, el.getAttribute('data-ing')); save();
+    if(S.tab==='pick'){
+      /* 只改这一格的选中态 + 刷新 chip 条和 CTA。
+         整页重绘会重建 #q,导致手机键盘收起、焦点丢失 —— 搜一样点一样时非常难用 */
+      el.classList.toggle('on');
+      refreshAfterPick();
+    } else render();
+    return;
+  }
+  if((el=closest(t,'data-unsel'))){
+    toggleArr(S.selected, el.getAttribute('data-unsel')); save();
+    if(S.tab==='pick'){ refreshChips(); refreshPick(); refreshCta(); renderTabs(); }
+    else render();
+    return;
+  }
+  if((el=closest(t,'data-pcat'))){
+    S.pickCat=el.getAttribute('data-pcat');
+    if(S.tab==='pick') refreshPick(); else render();
+    return;
+  }
+  if(t.id==='qclr'){
+    S.q=''; var qi=$('#q'); if(qi){ qi.value=''; qi.focus(); }
+    refreshPick(); return;
+  }
+  if(t.id==='clrSel'){
+    S.selected=[]; save();
+    if(S.tab==='pick'){ refreshChips(); refreshPick(); refreshCta(); renderTabs(); } else render();
+    return;
+  }
+  if(t.id==='goDish'){ go('dish'); return; }
+  if(t.id==='toPick'){ go('pick'); return; }
+  if(t.id==='toDish'){ go('dish'); return; }
+  if(t.id==='fromInv' || t.id==='invToSel'){
+    var n=0;
+    for(var i=0;i<S.inventory.length;i++){
+      var id=S.inventory[i].ing;
+      if(!inArr(S.selected,id)){ S.selected.push(id); n++; }
+    }
+    save(); S.tab = (t.id==='invToSel') ? 'dish' : S.tab; render();
+    toast(n?('带入 '+n+' 样'):'库存里的都已经选上了'); return;
+  }
+
+  /* --- 推荐页 --- */
+  if((el=closest(t,'data-sort'))){ S.sort=el.getAttribute('data-sort'); render(); return; }
+  if(t.id==='btnRoll' || t.id==='btnRoll2' || t.id==='rollAgain'){ doRoll(); return; }
+  if(t.id==='btnDay'){ doDayPlan(); return; }
+  if(t.id==='btnWeek'){ openWeek(); return; }
+  if(t.id==='planClose'){ S.dayPlan=null; render(); return; }
+  if(t.id==='planAdd'){
+    if(S.dayPlan){
+      for(i=0;i<S.dayPlan.ids.length;i++) if(!inArr(S.today,S.dayPlan.ids[i])) S.today.push(S.dayPlan.ids[i]);
+      save(); toast('整桌已加入清单'); render();
+    }
+    return;
+  }
+  if((el=closest(t,'data-swap'))){ swapPlanSlot(parseInt(el.getAttribute('data-swap'),10)); return; }
+  if(t.id==='ignTool'){ S.prefs.ignoreTools=true; save(); render(); toast('已忽略厨具限制'); return; }
+
+  /* --- 详情 --- */
+  if((el=closest(t,'data-open'))){ openRecipe(el.getAttribute('data-open')); return; }
+  if(t.id==='sheetClose' || t.id==='scrim' || t.id==='sfDone'){ closeSheet(); render(); return; }
+  if((el=closest(t,'data-sv'))){
+    S.prefs.servings=parseInt(el.getAttribute('data-sv'),10); save();
+    if(S.openId) openRecipe(S.openId); else render();
+    return;
+  }
+  if(t.id==='sfFav'){
+    if(S.openId){ toggleArr(S.favs,S.openId); save(); toast(inArr(S.favs,S.openId)?'已收藏':'已取消收藏'); openRecipe(S.openId); }
+    return;
+  }
+  if(t.id==='sfToday'){
+    if(S.openId){
+      if(inArr(S.today,S.openId)){ toggleArr(S.today,S.openId); toast('已从清单移除'); }
+      else { S.today.push(S.openId); toast('已加入今天做'); }
+      save(); openRecipe(S.openId); renderTabs();
+    }
+    return;
+  }
+  if(t.id==='sfCook'){ var oid=S.openId; closeSheet(); openCook(oid); return; }
+
+  /* --- 库存 --- */
+  if(t.id==='invAdd'){ openInvAdd(null); return; }
+  if((el=closest(t,'data-invpick'))){ openInvAdd(el.getAttribute('data-invpick')); return; }
+  if((el=closest(t,'data-invref'))){ openInvAdd(el.getAttribute('data-invref')); return; }
+  if((el=closest(t,'data-day'))){
+    var parts=el.getAttribute('data-day').split('|'), d=parseInt(parts[0],10), ing=parts[1];
+    var found=false;
+    for(i=0;i<S.inventory.length;i++) if(S.inventory[i].ing===ing){ S.inventory[i].days=d; S.inventory[i].addedAt=Date.now(); found=true; }
+    if(!found) S.inventory.push({ing:ing, addedAt:Date.now(), days:d});
+    if(!inArr(S.selected,ing)) S.selected.push(ing);
+    save(); closeSheet(); render();
+    toast(nameOf(ing)+' 已记入库存');
+    return;
+  }
+  if((el=closest(t,'data-invdel'))){
+    var did=el.getAttribute('data-invdel');
+    for(i=S.inventory.length-1;i>=0;i--) if(S.inventory[i].ing===did) S.inventory.splice(i,1);
+    save(); render(); return;
+  }
+  if(t.id==='invClear'){
+    if(confirm('清空整个库存?本次勾选的食材不受影响。')){ S.inventory=[]; save(); render(); }
+    return;
+  }
+
+  /* --- 购物清单 --- */
+  if((el=closest(t,'data-shop'))){
+    var key=el.getAttribute('data-shop');
+    if(S.shopDone[key]) delete S.shopDone[key]; else S.shopDone[key]=1;
+    render(); return;
+  }
+  if((el=closest(t,'data-untoday'))){
+    toggleArr(S.today, el.getAttribute('data-untoday')); save(); render(); return;
+  }
+  if(t.id==='clearToday'){ S.today=[]; S.shopDone={}; save(); render(); return; }
+  if(t.id==='copyShop'){ copyText(shopText()); return; }
+  if(t.id==='wkShop'){
+    if(S.weekPlan){
+      var cnt=0;
+      for(i=0;i<S.weekPlan.length;i++){
+        var p=S.weekPlan[i];
+        if(p.a && !inArr(S.today,p.a.id)){ S.today.push(p.a.id); cnt++; }
+        if(p.b && !inArr(S.today,p.b.id)){ S.today.push(p.b.id); cnt++; }
+      }
+      save(); closeSheet(); go('shop'); toast('已加入 '+cnt+' 道菜的缺料');
+    }
+    return;
+  }
+  if(t.id==='wkRe'){ openWeek(); return; }
+
+  /* --- 我的 --- */
+  if((el=closest(t,'data-goal'))){ S.prefs.goal=el.getAttribute('data-goal'); save(); render(); return; }
+  if((el=closest(t,'data-spicy'))){ S.prefs.maxSpicy=parseInt(el.getAttribute('data-spicy'),10); save(); render(); return; }
+  if((el=closest(t,'data-tg'))){
+    var kk=el.getAttribute('data-tg'); S.prefs[kk]=!S.prefs[kk]; save(); render(); return;
+  }
+  if((el=closest(t,'data-tool'))){ toggleArr(S.prefs.tools, el.getAttribute('data-tool')); save(); render(); return; }
+  if(t.id==='editAvoid'){ openAvoid(); return; }
+  if((el=closest(t,'data-av'))){
+    toggleArr(S.prefs.avoid, el.getAttribute('data-av')); save();
+    el.classList.toggle('on'); return;
+  }
+  if((el=closest(t,'data-unavoid'))){ toggleArr(S.prefs.avoid, el.getAttribute('data-unavoid')); save(); render(); return; }
+  if(t.id==='clrHist'){ if(confirm('清空做过的菜的记录?')){ S.history=[]; save(); render(); } return; }
+  if(t.id==='expData'){ copyText(JSON.stringify({selected:S.selected,inventory:S.inventory,prefs:S.prefs,favs:S.favs,history:S.history,today:S.today})); return; }
+  if(t.id==='impData'){
+    var raw=prompt('把之前导出的数据粘进来:');
+    if(raw){
+      try{
+        var d=JSON.parse(raw);
+        if(d.selected) S.selected=d.selected;
+        if(d.inventory) S.inventory=d.inventory;
+        if(d.favs) S.favs=d.favs;
+        if(d.history) S.history=d.history;
+        if(d.today) S.today=d.today;
+        if(d.prefs){ var pp=defPrefs(); for(var k in pp) if(d.prefs[k]!==undefined) pp[k]=d.prefs[k]; S.prefs=pp; }
+        save(); render(); toast('导入成功');
+      }catch(e){ toast('数据格式不对,导入失败'); }
+    }
+    return;
+  }
+  if(t.id==='resetAll'){
+    if(confirm('清空全部数据:勾选、库存、偏好、收藏、历史、清单。确定?')){
+      try{ localStorage.removeItem(LSKEY); }catch(e){}
+      S.selected=[]; S.inventory=[]; S.prefs=defPrefs(); S.favs=[]; S.history=[];
+      S.today=[]; S.weekPlan=null; S.shopDone={}; S.roll=null; S.dayPlan=null;
+      render(); toast('已重置');
+    }
+    return;
+  }
+
+  /* --- 做菜模式 --- */
+  if(t.id==='ckClose'){ closeCook(); return; }
+  if(t.id==='ckPrev'){ if(S.cookStep>0){ S.cookStep--; stopTimer(); renderCook(); } return; }
+  if(t.id==='ckNext'){
+    var r=recOf(S.cookId);
+    S.cookStep++; stopTimer();
+    if(r && S.cookStep>=r.st.length){
+      S.history.push({id:r.id, at:Date.now()});
+      if(S.history.length>200) S.history=S.history.slice(-200);
+      save();
+    }
+    renderCook(); return;
+  }
+  if(t.id==='ckDone'){ closeCook(); toast('已记入做过的菜'); return; }
+  if(t.id==='tmBtn'){
+    var rr=recOf(S.cookId);
+    ensureAudio();   /* iOS:必须在这次点击(用户手势)里解锁音频 */
+    if(S.timer) { stopTimer(); renderCook(); }
+    else if(rr && rr.st[S.cookStep]) startTimer(rr.st[S.cookStep].m*60);
+    return;
+  }
+});
+
+/* 搜索输入:只重绘 #pickBody,绝不动 #q 本身 —— 否则中文输入法组字会被打断 */
+function refreshPick(){
+  var pb=$('#pickBody'); if(pb) pb.innerHTML=pickBody();
+  var clr=$('#qclr');    if(clr) clr.style.display = S.q ? '' : 'none';
+}
+function refreshChips(){ var w=$('#chipWrap'); if(w) w.innerHTML=chipBar(); }
+function refreshCta(){ var b=$('#goDish'); if(b) b.textContent=ctaText(); }
+/* 勾选食材后的局部刷新:不重建 #q,手机键盘和输入焦点都能保住 */
+function refreshAfterPick(){ refreshChips(); refreshCta(); renderTabs(); }
+document.addEventListener('input', function(ev){
+  if(ev.target.id==='q'){
+    /* 拼音正在组字(候选未选定)时先不过滤,避免闪一屏「没找到」 */
+    if(ev.isComposing) return;
+    S.q=ev.target.value;
+    refreshPick();
+    return;
+  }
+  if(ev.target.id==='kcalCap'){
+    var v=parseInt(ev.target.value,10);
+    S.prefs.kcalCap = (isNaN(v)||v<=0) ? null : v;
+    save();
+  }
+});
+
+/* 输入法组字结束:此时 value 才是完整汉字,补一次过滤 */
+document.addEventListener('compositionend', function(ev){
+  if(ev.target.id==='q'){ S.q=ev.target.value; refreshPick(); }
+});
+
+/* iOS:软键盘弹起时隐藏吸底 CTA(fixed 元素会跟着键盘乱跳) */
+document.addEventListener('focusin', function(ev){
+  if(ev.target.id==='q') document.body.classList.add('kb');
+});
+document.addEventListener('focusout', function(ev){
+  if(ev.target.id==='q') document.body.classList.remove('kb');
+});
+
+/* Esc 关闭 */
+document.addEventListener('keydown', function(ev){
+  if(ev.key==='Escape'){
+    if($('#cook').classList.contains('on')) closeCook();
+    else if($('#sheet').classList.contains('on')){ closeSheet(); render(); }
+  }
+  if($('#cook').classList.contains('on')){
+    if(ev.key==='ArrowRight'||ev.key===' '){ ev.preventDefault(); var b=$('#ckNext'); if(b) b.click(); }
+    if(ev.key==='ArrowLeft'){ var p=$('#ckPrev'); if(p&&!p.disabled) p.click(); }
+  }
+});
+
+/* 复制(file:// 下 clipboard API 常被拒,用 textarea 兜底) */
+function copyText(s){
+  var ok=false;
+  try{
+    var ta=document.createElement('textarea');
+    ta.value=s;
+    ta.style.position='fixed'; ta.style.left='-9999px'; ta.style.top='0';
+    document.body.appendChild(ta);
+    ta.focus(); ta.select();
+    ok=document.execCommand('copy');
+    document.body.removeChild(ta);
+  }catch(e){ ok=false; }
+  if(ok){ toast('已复制到剪贴板'); return; }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(s).then(function(){ toast('已复制到剪贴板'); })
+      .catch(function(){ fallbackShow(s); });
+  }else fallbackShow(s);
+}
+function fallbackShow(s){
+  openSheet('复制清单',
+    '<div class="hint" style="margin-bottom:10px">这个浏览器不让自动复制。手动全选下面的文字复制走:</div>'
+    + '<textarea readonly style="width:100%;height:52vh;font-size:14px;line-height:1.7;padding:10px;'
+    + 'border:1px solid var(--line-2);border-radius:4px;background:var(--surface);font-family:var(--sans)">'
+    + esc(s)+'</textarea>', '<button class="btn" id="sfDone">关闭</button>');
+}
+
+/* ==========================================================================
+   第 11 层 · 启动与自检
+   ========================================================================== */
+
+/* 数据自检:菜谱引用的食材 id 是否都存在、菜谱 id 是否重复 */
+function selfCheck(){
+  var seen={}, bad=[], dup=[];
+  for(var i=0;i<RECIPES.length;i++){
+    var r=RECIPES[i];
+    if(seen[r.id]) dup.push(r.id); else seen[r.id]=1;
+    var a=r.m.concat(r.s);
+    for(var j=0;j<a.length;j++) if(!IMAP[a[j].i]) bad.push(r.id+' → '+a[j].i);
+    for(j=0;j<r.se.length;j++) if(!IMAP[r.se[j]]) bad.push(r.id+' → se:'+r.se[j]);
+    for(j=0;j<r.tl.length;j++){
+      var okT=false; for(var k=0;k<TOOLS.length;k++) if(TOOLS[k].id===r.tl[j]) okT=true;
+      if(!okT) bad.push(r.id+' → tool:'+r.tl[j]);
+    }
+  }
+  if(bad.length) console.warn('[小付,今天吃什么?] 数据自检发现未知引用:', bad);
+  if(dup.length) console.warn('[小付,今天吃什么?] 菜谱 id 重复:', dup);
+  if(!bad.length && !dup.length) console.log('[小付,今天吃什么?] 数据自检通过 · '+RECIPES.length+' 道菜 · '+ING.length+' 项食材');
+}
+
+load();
+selfCheck();
+render();
+
+/* 暴露给控制台,方便调试 */
+window.EW={S:S, RECIPES:RECIPES, ING:ING, match:match, render:render};
+
+})();
+</script>
+</body>
+</html>
