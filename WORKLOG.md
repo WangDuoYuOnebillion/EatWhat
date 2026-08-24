@@ -43,9 +43,12 @@
 **为什么用真实事件序列而不是 `element.click()`**
 守红线 #4:先 `document.elementFromPoint(70,327)` 确认食材格中心真的点得到(`hitIsInsideIng=true`),再在该坐标派发 `pointerdown→mousedown→pointerup→mouseup→click`,走 App 真实的事件委托链路。`element.click()` 会绕过命中测试,不能用来证明"点得到"。
 
+**补记(同会话,晚些):推送到 Gitee**
+用户建好了公开仓库 `wangchen1995/eat-what`(注意带连字符,与 DEPLOY.md 原示例 `eatwhat` 不同,已订正文档)。加 remote 后 `git push -u origin main` + `git push -u origin gh-pages`,凭据走本机 Git Credential Manager(已缓存,未弹窗,我全程没经手密码)。`git ls-remote` 核验:远端 `main`=`a33b12a`、`gh-pages`=`a4bfae9`,与本地一致。方案 C 的红利兑现:本次只改了文档,`gh-pages` 那两个文件没动,**无需重新同步部署分支**。
+
 **遗留**
-- 验收 #1(手机 Safari)/ #2(微信内打开)/ #3 真机 / #5 真机加主屏 / #6(按 DEPLOY.md 走一遍更新)—— 都要**用户部署后在真机上实测**,我在本地只能验到等效行为。
-- 远端仓库、Gitee Pages 都还没建(需用户登录+实名)。`gh-pages` 分支只在本地,尚未推送。
+- 🔴 **开启 Gitee Pages**(仓库「服务 → Gitee Pages」选 `gh-pages` 分支)—— 要登录后台,只有用户能点。
+- 🔴 验收 #1(手机 Safari)/ #2(微信内打开)/ #3 真机 / #5 真机加主屏 / #6(走一遍更新)—— 待 Pages 上线后真机实测。
 
 ---
 

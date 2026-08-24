@@ -21,45 +21,35 @@ index.html
 apple-touch-icon.png   ← 缺了它,加到主屏就是网页缩略图而不是图标
 ```
 
-`gh-pages` 分支已在本地建好(orphan 分支,只含上面两个文件)。推送到远端需要你先建好 Gitee 仓库(见下)。
+`gh-pages` 分支已建好(orphan 分支,只含上面两个文件),**且已推送到远端**。
+
+**本仓库(会话 #7 已建 + 已推送):**
+- 仓库:https://gitee.com/wangchen1995/eat-what
+- 部署后地址(开 Pages 后生成):`https://wangchen1995.gitee.io/eat-what`
 
 ---
 
-## 你必须自己做的事(我做不了)
+## 进度:哪些做完了,还差哪步
 
-注册、实名、建仓库、开 Pages 都要登录和身份验证,我代劳不了。以下是逐步清单。
+| 步 | 事项 | 状态 |
+|---|---|---|
+| 1 | 注册 + 实名 | ✅ 用户已完成(仓库已能建) |
+| 2 | 建公开仓库 `eat-what` | ✅ 已建 |
+| 3 | 推送 `main` + `gh-pages` | ✅ **已推送**(两分支远端哈希与本地一致) |
+| 4 | 开启 Gitee Pages(选 `gh-pages` 分支) | 🔴 **待你做** —— 要登录后台点按钮 |
+| 5 | 手机真机验收 | 🔴 待 #4 完成后测 |
 
-### 一、Gitee 主线(推荐先走这条)
+### 🔴 第 4 步:开启 Gitee Pages(只有你能点)
 
-**1. 注册 + 实名**
-- 打开 https://gitee.com 注册账号。
-- 到「设置 → 实名认证」完成实名(Gitee Pages **免费版要求实名**,不实名开不了 Pages)。
-
-**2. 建一个公开仓库**
-- 右上角 `+` → 新建仓库。
-- 仓库名例如 `eatwhat`(最终地址会是 `你的用户名.gitee.io/eatwhat`)。
-- 选 **公开**。**不要**勾「使用 Readme 初始化」(留空仓库,免得推送时冲突)。
-- 建好后复制它的仓库地址,形如 `https://gitee.com/你的用户名/eatwhat.git`。
-
-**3. 把两条分支推上去**(在项目目录里执行,`<你的用户名>` 换成自己的)
-
-```bash
-git remote add origin https://gitee.com/<你的用户名>/eatwhat.git
-git push -u origin main
-git push -u origin gh-pages
-```
-
-> 首次推送会让你输 Gitee 账号密码(或私人令牌)。
-> 只想公开部署分支、连 `main` 都不想传?那就只 `git push -u origin gh-pages`——
-> 但建议 `main` 也推上去,否则代码只在你这台机器上,坏了没得恢复。
-
-**4. 开启 Gitee Pages**
-- 进仓库页面 → 顶部菜单「服务」→「Gitee Pages」。
+- 进仓库 https://gitee.com/wangchen1995/eat-what → 顶部菜单「服务」→「Gitee Pages」。
 - **部署分支选 `gh-pages`**,目录选 `/`(根)。
-- 点「启动」/「部署」。等几秒,页面会给出访问地址:`https://你的用户名.gitee.io/eatwhat`。
+- 点「启动」/「部署」。等几秒,页面给出访问地址:`https://wangchen1995.gitee.io/eat-what`。
 
-**5. 验收(用手机,不要用电脑)**
-- 手机 **Safari** 打开那个地址 → 应用应正常加载。
+> 若第一次进「服务」菜单里没有「Gitee Pages」,通常是实名还没完全生效或页面没刷新,等一下再看。
+
+### 🔴 第 5 步:验收(用手机,不要用电脑)
+
+- 手机 **Safari** 打开 `https://wangchen1995.gitee.io/eat-what` → 应用应正常加载。
 - 把链接发到**微信**给自己 → 在微信里直接点开 → 应能用(这才是"发给别人"的真实场景)。
 - 勾几样食材 → **完全关掉浏览器** → 重开 → 数据还在。
 - 页面顶部**不应**出现「这个环境不让保存数据」红条。
