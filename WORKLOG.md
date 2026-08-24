@@ -6,6 +6,49 @@
 
 ---
 
+## 2026-08-24
+
+### #016 · P8 部署准备:图标 + 部署分支 + DEPLOY.md(会话 #7)
+
+**做了什么**
+
+1. **生成 `apple-touch-icon.png`(180×180)。** 手写 SVG(暖米底 + 棕碗 + 三缕热气 + 1px 内框,贴合品牌「无阴影 / 1px 实线」)→ headless Chrome 3× 渲染成 540×540 → Pillow Lanczos 缩到 180×180。全程离线、零新增依赖。
+   ```bash
+   # 渲染(scratchpad/icon.html 是那份 SVG 包装)
+   chrome --headless --disable-gpu --force-device-scale-factor=3 \
+     --window-size=180,180 --default-background-color=00000000 \
+     --screenshot=icon_3x.png icon.html
+   # 缩放
+   python -c "from PIL import Image; Image.open('icon_3x.png').convert('RGB').resize((180,180), Image.LANCZOS).save('apple-touch-icon.png','PNG',optimize=True)"
+   ```
+
+2. **`<head>` 加两行 `<link>`:** `apple-touch-icon`(加到主屏图标)+ `icon`(favicon,复用同一 PNG)。**关键坑:iOS 不认 `data:` URI 形式的 apple-touch-icon**,必须是真实文件,所以图标不能内联,得跟 `index.html` 同目录部署。
+
+3. **建了本地 `gh-pages` orphan 分支(方案 C)**,只含 `index.html` + `apple-touch-icon.png`,内部文档不外露。更新流程写死在 [DEPLOY.md](DEPLOY.md)。
+
+4. **写了 [DEPLOY.md](DEPLOY.md):** Gitee Pages 主线清单(注册→实名→建公开仓库→推 `main`+`gh-pages`→开 Pages→手机验收)+ 腾讯云 COS 兜底清单 + 日常更新流程 + FAQ。
+
+5. **回填文档:** 新增 [ADR-022](DECISIONS.md);订正 ADR-021 里「apple-touch-icon 缺失归 P6」为已解决;更新 README(部署指引 + 文件清单 + 决策数 21→22)。
+
+**实测(在本地 http server 上模拟托管,等效 https 行为)**
+
+| 验收项 | 我能测的部分 | 结果 |
+|---|---|---|
+| #1 能访问 | `index.html` 200 | ✅ |
+| #3 数据能存住 | 空 → 命中测试确认可点 → 派发真实事件选中西红柿 → 刷新 → 恰好留存这一项 | ✅ |
+| #4 无存储警告 | http 下 `STORAGE_OK=true`,页面无「不让保存数据」红条 | ✅ |
+| #5 图标 | `apple-touch-icon.png` 200、`<link>` 解析正确 | ✅(真机加主屏效果待用户实测) |
+| #7 不回归 | `node check.js` → **0 error**,3 条营养 warning(±18–19%,设计带内),退出码 0 | ✅ |
+
+**为什么用真实事件序列而不是 `element.click()`**
+守红线 #4:先 `document.elementFromPoint(70,327)` 确认食材格中心真的点得到(`hitIsInsideIng=true`),再在该坐标派发 `pointerdown→mousedown→pointerup→mouseup→click`,走 App 真实的事件委托链路。`element.click()` 会绕过命中测试,不能用来证明"点得到"。
+
+**遗留**
+- 验收 #1(手机 Safari)/ #2(微信内打开)/ #3 真机 / #5 真机加主屏 / #6(按 DEPLOY.md 走一遍更新)—— 都要**用户部署后在真机上实测**,我在本地只能验到等效行为。
+- 远端仓库、Gitee Pages 都还没建(需用户登录+实名)。`gh-pages` 分支只在本地,尚未推送。
+
+---
+
 ## 2026-08-22
 
 ### #015 · 重构 ROADMAP:加执行顺序表、部署提前、新增多端阶段

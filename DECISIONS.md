@@ -403,16 +403,55 @@ $('#q').focus();
 | **搜索框原生样式** | `-webkit-appearance:none` + 干掉 `::-webkit-search-cancel-button` | iOS 会给 `type=search` 套一层原生圆角和清除按钮,和设计冲突 |
 | **加到主屏** | `apple-mobile-web-app-capable` 等全套元信息 | 全屏运行、状态栏样式、主屏名称 |
 
-**仍未解决的一项:** `apple-touch-icon` 缺失,加到主屏会显示网页缩略图而不是图标。归入 P6。
+**~~仍未解决的一项:~~** ~~`apple-touch-icon` 缺失,加到主屏会显示网页缩略图而不是图标。归入 P6。~~
+✅ **已解决(会话 #7 / P8):** 生成了 180×180 的 `apple-touch-icon.png`(棕碗图标),`<head>` 里加了 `<link rel="apple-touch-icon">`。见 [ADR-022](#adr-022--部署到-gitee-pages方案-c-单分支腾讯云-cos-兜底)。注意 iOS **只认真实 PNG 文件、不认 `data:` URI**,所以图标必须与 `index.html` 同目录部署。
 
 **Wake Lock:** iOS Safari 不支持 `navigator.wakeLock`,做菜模式屏幕仍会自动锁屏。代码已 try/catch 静默降级。这是平台限制,只能靠用户在系统里调长自动锁屏时间。
+
+---
+
+## ADR-022 · 部署到 Gitee Pages(方案 C·单分支),腾讯云 COS 兜底
+
+**日期:** 2026-08-24 · 会话 #7 · 阶段 P8
+
+**背景**
+应用早就自足了(零外链、零 fetch、~250KB 单文件),但**分发是个死结**:微信不预览 `.html`,AirDrop 只限苹果之间,邮件/网盘都要"下载→手动挑浏览器打开"。普通人在 iPhone 上走不完。而且 `file://` 下 iOS Safari 很可能禁 localStorage、也没法加到主屏。托管成一个网址能**一次性**解掉分发 + 存储 + 主屏三件事。
+
+**决策**
+
+1. **仓库方案 C —— 同仓库单独部署分支 `gh-pages`。**
+   `gh-pages` 是 orphan 分支,**只含 `index.html` + `apple-touch-icon.png`** 两个文件;`main` 保留全部开发文档。
+   - 排除 A(全部公开):不想把踩坑记录一起公开(内容不敏感,但没必要)。
+   - 排除 B(两个仓库):每次更新要同步两个仓库,比单分支更啰嗦。
+   - C 的代价是分支管理稍复杂,已在 [DEPLOY.md](DEPLOY.md) 写死更新流程(`git checkout main -- index.html apple-touch-icon.png`)对冲。
+
+2. **默认域名 `用户名.gitee.io/仓库名`。** 自定义域名要备案,先不折腾。
+
+3. **主线 Gitee Pages,兜底腾讯云 COS 静态网站。**
+   Gitee 国内访问好、免费,但**需实名**且**免费版每次更新要手动点「更新」**。万一实名卡住或政策再变,切 COS(国内最稳,一个 250KB 文件月费几分钱,且传了即最新、无手动更新步骤)。排除 Netlify/Vercel/GitHub Pages:国内访问不稳,朋友可能打不开。
+
+4. **`apple-touch-icon` 用真实 PNG 文件,不用 `data:` URI。**
+   iOS 历来**不认 `data:` URI 形式的 apple-touch-icon**,必须是可访问的真实文件。所以图标做成 `apple-touch-icon.png`(180×180)与 `index.html` 同目录部署,`gh-pages` 分支才要带上它。favicon 复用同一文件,不额外增文件。
+
+**图标怎么来的(可复现)**
+离线生成,不引任何依赖:手写 SVG(暖米色底 + 棕碗 + 热气,贴合品牌「无阴影 / 1px 实线」风格)→ headless Chrome 以 3× 渲染成 540×540 PNG → Pillow 用 Lanczos 缩到 180×180。命令记录见 [WORKLOG](WORKLOG.md) #016。
+
+**影响**
+- `index.html` `<head>` 增两行 `<link>`(apple-touch-icon + icon)。
+- 新增 `apple-touch-icon.png`、`DEPLOY.md`。
+- 新增本地 `gh-pages` 分支。
+- 红线 1(零依赖、`file://` 下功能完整)**不破**:图标是纯静态文件,应用逻辑仍零网络请求;托管只是换了个 origin,`file://` 打开照样能用。
+
+**遗留**
+- 注册 / 实名 / 建仓库 / 开 Pages / 推送远端,必须用户自己做(要登录和身份验证)。验收 1–6 条待用户部署后在真机实测。
+- 部署到 https 后,原「PWA 需 https 而我们是 file://」的两难消失,P6 可以真正谈 PWA 了。
 
 ---
 
 ## 待定 / 未来需要决策的问题
 
 - 菜谱库扩到 200+ 时,单文件是否还合适(当前 153 道 / 246KB,再翻一倍需要评估首屏解析耗时,可能要拆数据文件或改 IndexedDB)
-- 是否需要 PWA 化以支持"添加到主屏幕" —— 已升级为 [ROADMAP](ROADMAP.md) P6 的开工前必答题(完整 PWA 需 https,与"双击即用"定位冲突,三个候选方案见 P6)
+- 是否需要 PWA 化以支持"添加到主屏幕" —— 归 [ROADMAP](ROADMAP.md) P6。**原"PWA 需 https 而我们是 file://"的两难已被 P8 消除**([ADR-022](#adr-022--部署到-gitee-pages方案-c-单分支腾讯云-cos-兜底)):托管到 https 后,加 service worker 只是成本问题,不再是路线冲突
 - 一周菜单是否需要考虑营养均衡度的量化评分,而非只做荤素搭配
 - 菜卡上是否要显示"这道菜能用掉你选的几样食材"的利用率数字(算法里已有该权重,但没暴露给用户)
 - 步骤计时器目前只支持单个计时;炖菜类需要长时计时 + 后台提醒时,可能要引入 Notification API
