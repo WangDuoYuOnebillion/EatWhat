@@ -8,7 +8,9 @@
 
 ## 怎么用
 
-**在线地址(推荐):👉 https://eatwhat-cui.pages.dev** —— 手机浏览器或微信里直接打开就能用、能存数据、能加到主屏。托管在 Cloudflare Pages,部署与更新见 [DEPLOY.md](DEPLOY.md)。
+**在线地址(推荐):👉 https://eatwhat-cui.pages.dev** —— 手机浏览器打开就能用、能存数据、能加到主屏。托管在 Cloudflare Pages,部署与更新见 [DEPLOY.md](DEPLOY.md)。
+
+> ⚠️ **微信里点链接打不开**(海外域名未备案,被微信拦)。在微信里请点右上角「···」→「在浏览器打开」。想在微信内一键直开,需要备案的自定义域名 —— 见 [DEPLOY.md](DEPLOY.md) 备选一,属可选升级。
 
 也可以**双击本地 `index.html`**,不用装任何东西、不用联网。
 
