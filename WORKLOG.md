@@ -46,9 +46,14 @@
 **补记(同会话,晚些):推送到 Gitee**
 用户建好了公开仓库 `wangchen1995/eat-what`(注意带连字符,与 DEPLOY.md 原示例 `eatwhat` 不同,已订正文档)。加 remote 后 `git push -u origin main` + `git push -u origin gh-pages`,凭据走本机 Git Credential Manager(已缓存,未弹窗,我全程没经手密码)。`git ls-remote` 核验:远端 `main`=`a33b12a`、`gh-pages`=`a4bfae9`,与本地一致。方案 C 的红利兑现:本次只改了文档,`gh-pages` 那两个文件没动,**无需重新同步部署分支**。
 
+**补记(同会话,再晚些):Gitee Pages 下线,改道 EdgeOne Pages**
+推送后去开 Pages,发现仓库「服务」菜单 14 项服务里**没有 Gitee Pages**。查证([知乎](https://www.zhihu.com/question/655233802) / [Gitee 帮助中心](https://help.gitee.com/services/gitee-pages/pro/)):**免费 Gitee Pages 2024-05 整体下线,Pages Pro 停个人购买** —— 政策问题,非账号问题。正好命中 ADR-022 原文预留的"政策再变"兜底触发条件。
+
+改走**腾讯云 EdgeOne Pages**(用户在选项里拍板):免费 + 国内 CDN + **支持直连 Gitee 仓库**(`push` 到 `gh-pages` 自动重部署),也支持直接拖文件上传。查实关键点:国内控制台 `edgeone.cloud.tencent.com`;纯静态站构建配置=构建命令留空 / 输出目录 `./` / 生产分支 `gh-pages`;**默认预览域名可直接访问、不需备案**,只有自定义域名在中国大陆加速区才要备案。COS 继续留作兜底。据此重写了 DEPLOY.md,并给 ADR-022 加了修订段。方案 C 不变、反而更贴合(输出目录 `./` + 分支 `gh-pages` 只上线两个文件)。
+
 **遗留**
-- 🔴 **开启 Gitee Pages**(仓库「服务 → Gitee Pages」选 `gh-pages` 分支)—— 要登录后台,只有用户能点。
-- 🔴 验收 #1(手机 Safari)/ #2(微信内打开)/ #3 真机 / #5 真机加主屏 / #6(走一遍更新)—— 待 Pages 上线后真机实测。
+- 🔴 **EdgeOne Pages 部署**(注册腾讯云+实名→导入 Gitee 仓库→分支 `gh-pages`→构建配置→部署)—— 控制台操作,只有用户能点。
+- 🔴 验收 #1(手机 Safari)/ #2(微信内打开)/ #3 真机 / #5 真机加主屏 / #6(走一遍更新)—— 待上线后真机实测。
 
 ---
 

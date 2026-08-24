@@ -10,35 +10,38 @@
 ## 一句话:现在在哪
 
 应用是**「小付,今天吃什么?」v1.0**,纯手机端单文件 Web App。
-**P8 部署阶段:我能做的都做完了,本地验收全过;差最后一步 —— 用户自己去 Gitee 部署。**
+**P8 部署阶段:代码侧全部就绪、已推 Gitee;差最后一步 —— 用户去腾讯云 EdgeOne Pages 点部署。**
+(原定 Gitee Pages 中途发现已下线,改道 EdgeOne Pages,详见下。)
 
 会话 #7 产出:
 - `apple-touch-icon.png`(180×180 棕碗图标)+ `<head>` 里的 `apple-touch-icon` / `icon` 链接
-- `DEPLOY.md`(Gitee Pages 主线 + 腾讯云 COS 兜底 + 更新流程)
-- 本地 `gh-pages` orphan 分支(方案 C:只含 `index.html` + 图标,内部文档不外露)
-- [ADR-022](DECISIONS.md) 记录方向性选择
+- `DEPLOY.md`(EdgeOne Pages 主线 + 腾讯云 COS 兜底 + 更新流程)
+- `gh-pages` orphan 分支(方案 C:只含 `index.html` + 图标),已推送到 Gitee
+- [ADR-022](DECISIONS.md)(含平台改道的修订记录)
 
 **远端仓库已建 + 已推送(会话 #7 末):**
 - 仓库:https://gitee.com/wangchen1995/eat-what
 - `main` + `gh-pages` 均已 push,远端哈希与本地一致(main `a33b12a` / gh-pages `a4bfae9`)
 - 部署后地址(开 Pages 后生成):`https://wangchen1995.gitee.io/eat-what`
 
-**P8 还没关闭。** 就差两步,**都在用户侧**:
+**⚠️ 托管平台变了:Gitee 免费 Pages 已于 2024-05 下线**(仓库「服务」菜单里根本没有该项,查证是政策下线,非账号问题)。**改走腾讯云 EdgeOne Pages**(免费 + 国内 CDN + 直连 Gitee 仓库),COS 保留为兜底。见 [ADR-022 修订](DECISIONS.md)。
 
-1. 🔴 **开启 Gitee Pages** —— 进仓库「服务 → Gitee Pages」,部署分支选 `gh-pages`,点启动。要登录后台,我点不了。
+**P8 还没关闭。** 就差两步,**都在用户侧**(控制台操作,我登不进去):
+
+1. 🔴 **注册腾讯云 + 实名 → EdgeOne Pages 连 Gitee 部署**。控制台 `edgeone.cloud.tencent.com`,新建项目→导入 Git 仓库→选 `wangchen1995/eat-what`→**生产分支 `gh-pages`、构建命令留空、输出目录 `./`**、加速区中国大陆。完整步骤见 [DEPLOY.md](DEPLOY.md)。
 2. 🔴 **真机验收** —— #1 手机访问 / #2 微信打开 / #3 真机重开存住 / #5 真机加主屏图标 / #6 走一遍更新流程。
 
 本地能验的(#3 存储 / #4 无红条 / #5 图标就位 / #7 check.js 零 error)会话 #7 已全过。
 
 ---
 
-## 🔴 下个会话开工前:先确认用户开 Pages 了没
+## 🔴 下个会话开工前:先确认用户 EdgeOne 部署了没
 
-- **用户已开 Gitee Pages 且能访问?**
-  → 拿到线上地址,陪用户跑真机验收 #1/#2/#3/#5/#6。全过 → 关闭 P8 → 进 **P2 手机真机走查**。
-- **开 Pages 时卡住了?**(菜单没有 Pages / 部署报错 / 微信打不开)
-  → 对照 [DEPLOY.md](DEPLOY.md) 的 FAQ 排查;实在不行切腾讯云 COS 兜底(DEPLOY.md 二节)。
-- **注意:** P2 本身也需要"已上线 + 真机",所以开 Pages 是后续 P2/P6 的共同前置。
+- **用户已用 EdgeOne Pages 部署好、有能访问的默认域名?**
+  → 拿到线上地址(形如 `xxx.edgeone.app`),记进 DEPLOY.md,陪用户跑真机验收 #1/#2/#3/#5/#6。全过 → 关闭 P8 → 进 **P2 手机真机走查**。
+- **部署卡住了?**(找不到 Gitee 授权 / 构建 404 / 微信打不开)
+  → 对照 [DEPLOY.md](DEPLOY.md) 的 FAQ;构建配置最容易错(必须留空构建命令、输出 `./`、分支 `gh-pages`)。实在不行切腾讯云 COS 兜底(DEPLOY.md 末节)。
+- **注意:** P2 本身也需要"已上线 + 真机",所以上线是后续 P2/P6 的共同前置。
 
 ---
 
