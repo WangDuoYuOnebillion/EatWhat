@@ -19,16 +19,17 @@
 - `gh-pages` orphan 分支(方案 C:只含 `index.html` + 图标),已推送到 Gitee
 - [ADR-022](DECISIONS.md)(含平台改道的修订记录)
 
-**远端仓库已建 + 已推送(会话 #7 末):**
-- 仓库:https://gitee.com/wangchen1995/eat-what
-- `main` + `gh-pages` 均已 push,远端哈希与本地一致(main `a33b12a` / gh-pages `a4bfae9`)
-- 部署后地址(开 Pages 后生成):`https://wangchen1995.gitee.io/eat-what`
+**远端仓库(两个,都已推 `main` + `gh-pages`,远端哈希与本地一致):**
+- **GitHub `WangDuoYuOnebillion/EatWhat`(EdgeOne 的部署源)** ← remote 名 `github`,main `a7f7a7a` / gh-pages `a4bfae9`
+- Gitee `wangchen1995/eat-what`(国内镜像/备份) ← remote 名 `origin`
 
-**⚠️ 托管平台变了:Gitee 免费 Pages 已于 2024-05 下线**(仓库「服务」菜单里根本没有该项,查证是政策下线,非账号问题)。**改走腾讯云 EdgeOne Pages**(免费 + 国内 CDN + 直连 Gitee 仓库),COS 保留为兜底。见 [ADR-022 修订](DECISIONS.md)。
+**⚠️ 两处改道,都记在 [ADR-022 修订](DECISIONS.md):**
+1. **Gitee 免费 Pages 已于 2024-05 下线** → 托管改走**腾讯云 EdgeOne Makers**(原 EdgeOne Pages,2026-06 改名;免费 + 国内 CDN),COS 保留兜底。
+2. **EdgeOne 连 Gitee 时生产分支下拉读不到 `gh-pages`(暂无数据)** → 代码加推一份到 **GitHub**,EdgeOne 改连 GitHub(它对 GitHub 支持最好)。
 
 **P8 还没关闭。** 就差两步,**都在用户侧**(控制台操作,我登不进去):
 
-1. 🔴 **注册腾讯云 + 实名 → EdgeOne Makers 连 Gitee 部署**。(EdgeOne Pages 已改名 Makers,功能不变。)控制台 `console.cloud.tencent.com/edgeone` → Makers → 场景选择大厅→导入 Git 仓库→选 `wangchen1995/eat-what`→**生产分支 `gh-pages`、框架预设"其他/静态"、构建命令留空、输出目录 `./`**、加速区中国大陆。完整步骤见 [DEPLOY.md](DEPLOY.md)。
+1. 🔴 **注册腾讯云 + 实名 → EdgeOne Makers 连 GitHub 部署**。(EdgeOne Pages 已改名 Makers;**连 Gitee 时生产分支下拉读不到 `gh-pages`「暂无数据」,故改用 GitHub**,代码已推 GitHub。)控制台 `console.cloud.tencent.com/edgeone` → Makers → 场景选择大厅→导入 Git 仓库→**授权 GitHub**→选 `WangDuoYuOnebillion/EatWhat`→**生产分支 `gh-pages`、框架预设"其他/静态"、构建命令留空、输出目录 `./`**、加速区随意(只用默认域名,不涉备案)。完整步骤见 [DEPLOY.md](DEPLOY.md)。
 2. 🔴 **真机验收** —— #1 手机访问 / #2 微信打开 / #3 真机重开存住 / #5 真机加主屏图标 / #6 走一遍更新流程。
 
 本地能验的(#3 存储 / #4 无红条 / #5 图标就位 / #7 check.js 零 error)会话 #7 已全过。
@@ -110,7 +111,7 @@ P7   v1.1 全量回归        ░░░░░░░░░░░░   0%
 - **真机从未验过。** 所有测试都在 headless / 本地浏览器里跑。设备是 **iPhone 13**(系统版本待确认)。P2 消掉这一条。
 - **`file://` 下大概率存不住数据。** 已有页面顶部红条兜底,不会静默丢。**部署到 https 后此问题消失**(本次已在本地 http 验证无红条、存得住)。
 - **加到主屏图标已就位但真机没验。** `apple-touch-icon.png` 已生成并链接,`<link>` 本地解析正常;真机「添加到主屏」的实际效果待用户测。
-- ~~**`gh-pages` 分支只在本地,没有远端。**~~ ✅ 会话 #7 已推送到 https://gitee.com/wangchen1995/eat-what(`main` + `gh-pages`)。
+- ~~**`gh-pages` 分支只在本地,没有远端。**~~ ✅ 会话 #7 已推送到 **GitHub `WangDuoYuOnebillion/EatWhat`(部署源)** 和 Gitee `wangchen1995/eat-what`(镜像),`main` + `gh-pages` 都在。
 - **Wake Lock 在 iOS Safari 不支持**,做菜模式屏幕仍会自动锁屏。已 try/catch 静默降级,平台限制。
 - **营养自洽只查"内部一致"**,查不出标称值整体偏高/偏低。3 条 ±18–19% 的 warning 属设计带内。
 - 热量是估算值,误差约 ±15%。这是**设计上的诚实**,不是缺陷。

@@ -458,7 +458,15 @@ $('#q').focus();
 
 **未变的判断:** 选国内托管(而非 Vercel/Netlify/GitHub Pages)的理由不变 —— 朋友在国内、要在微信里打开,海外托管访问不稳。EdgeOne 与 COS 都是腾讯系、国内访问稳。
 
-**新遗留:** 注册腾讯云+实名、EdgeOne 连 Gitee、选构建配置,都要用户在控制台自己点(我无法登录代操作)。部署方式与验收清单见 [DEPLOY.md](DEPLOY.md)。
+**新遗留:** 注册腾讯云+实名、EdgeOne 连仓库、选构建配置,都要用户在控制台自己点(我无法登录代操作)。部署方式与验收清单见 [DEPLOY.md](DEPLOY.md)。
+
+### 再修订 · 2026-08-24(同会话):部署源从 Gitee 换成 GitHub
+
+**为什么又改:** 在 EdgeOne Makers「导入 Git 仓库」里连 Gitee 后,**生产分支下拉框搜 `gh-pages` 显示「暂无数据」** —— EdgeOne 对 Gitee 的分支枚举有问题(GitHub 才是它一等公民)。
+
+**决策:** 把同样的 `main` + `gh-pages` **加推一份到 GitHub `WangDuoYuOnebillion/EatWhat`**,EdgeOne 改**连 GitHub**;Gitee 仓库降为国内镜像/备份。本机 `gh` 未安装,GitHub 仓库由用户在网页建、我加 remote 后推送(凭据走本机 Git Credential Manager,我不经手密码)。
+
+**影响:** 现在有两个远程 —— `github`(EdgeOne 部署源,推它触发重部署)+ `origin`(Gitee 镜像)。更新流程改为两个都推,见 [DEPLOY.md](DEPLOY.md)「以后怎么更新」。方案 C 与 `gh-pages` 分支结构不变。
 
 ---
 

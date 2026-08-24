@@ -17,9 +17,10 @@
 
 | 决策 | 选择 | 理由 |
 |---|---|---|
-| 代码仓库 | **Gitee `wangchen1995/eat-what`**(方案 C:单独 `gh-pages` 部署分支) | 代码已推上去了;`gh-pages` 分支**只含 `index.html` + `apple-touch-icon.png`**,部署时不带内部文档 |
+| **代码仓库(EdgeOne 源)** | **GitHub `WangDuoYuOnebillion/EatWhat`** | EdgeOne 连 Gitee 时**生产分支下拉框读不到 `gh-pages`(暂无数据)**,GitHub 集成才正常;方案 C 不变,`gh-pages` 分支只含两个部署文件 |
+| 代码仓库(镜像) | Gitee `wangchen1995/eat-what` | 已推,留作国内镜像/备份;两个远程都推同样的 `main` + `gh-pages` |
 | ~~托管平台~~ | ~~Gitee Pages~~ | ❌ 已下线,弃用 |
-| **托管平台(主线)** | **腾讯云 EdgeOne Makers**(原 EdgeOne Pages) | 完全免费、国内 CDN、能直连 Gitee 仓库(push 即自动重部署,没有 Gitee 那种"手动点更新") |
+| **托管平台(主线)** | **腾讯云 EdgeOne Makers**(原 EdgeOne Pages) | 完全免费、国内 CDN、连 GitHub 仓库(push 即自动重部署,没有 Gitee Pages 那种"手动点更新") |
 | 托管平台(兜底) | 腾讯云 COS 静态网站 | EdgeOne 万一卡住时切它,月费几分钱 |
 | 域名 | **用 EdgeOne 分配的默认预览域名** | 默认域名可直接访问、**不需要备案**;自定义域名在中国大陆加速区才要备案,先不折腾 |
 
@@ -36,11 +37,11 @@ apple-touch-icon.png   ← 缺了它,加到主屏就是网页缩略图而不是�
 
 | 步 | 事项 | 状态 |
 |---|---|---|
-| 1 | Gitee 注册 + 实名 | ✅ 已完成 |
-| 2 | 建公开仓库 `eat-what` | ✅ 已建 |
-| 3 | 推送 `main` + `gh-pages` | ✅ 已推送(远端哈希与本地一致) |
+| 1 | Gitee/GitHub 注册 + 实名 | ✅ 已完成 |
+| 2 | 建仓库(Gitee `eat-what` + GitHub `EatWhat`) | ✅ 已建 |
+| 3 | 两个远程都推 `main` + `gh-pages` | ✅ 已推送(远端哈希与本地一致) |
 | 4 | 注册腾讯云 + 实名 | 🔴 **待你做** |
-| 5 | EdgeOne Makers 连 Gitee 部署 | 🔴 **待你做**(控制台操作,我点不了) |
+| 5 | EdgeOne Makers **连 GitHub** 部署 | 🔴 **待你做**(控制台操作,我点不了) |
 | 6 | 手机真机验收 | 🔴 待 #5 出地址后测 |
 
 ---
@@ -57,7 +58,9 @@ apple-touch-icon.png   ← 缺了它,加到主屏就是网页缩略图而不是�
 ### 2. 进 Makers → 场景选择大厅 → 导入 Git 仓库
 - 进 [边缘安全加速平台 EO 控制台](https://console.cloud.tencent.com/edgeone) → 左侧找到 **Makers**。
 - 首次进入会出现**「场景选择大厅」**,四个入口:**导入 Git 仓库** / 从模板开始 / 直接上传 / Agent 模板 —— 选 **「导入 Git 仓库」**。
-- 授权 **Gitee**(跳到 Gitee 点同意,让 EdgeOne 能读你的仓库),然后选中 `wangchen1995/eat-what`。
+- **授权 GitHub**(不是 Gitee!),然后选中 `WangDuoYuOnebillion/EatWhat`。
+
+> **为什么用 GitHub 不用 Gitee:** 实操时 EdgeOne 连 Gitee,生产分支下拉框搜 `gh-pages` 显示**「暂无数据」**(EdgeOne 对 Gitee 的分支识别不行)。改推 GitHub 后分支能正常读到。Gitee 那个仓库留作国内镜像。
 
 ### 3. 构建配置(纯静态,别填错)
 
@@ -119,31 +122,34 @@ apple-touch-icon.png   ← 缺了它,加到主屏就是网页缩略图而不是�
 
 **日常都在 `main` 分支改**(所有文档、`check.js`、`index.html` 都在这)。改完要上线时,把两个部署文件同步到 `gh-pages`:
 
+> 两个远程:`github`(EdgeOne 盯着它,推它才会触发重部署)+ `origin`(Gitee,国内镜像)。下面把两个都推。
+
 ```bash
 # 1. 在 main 上改代码、提交(pre-commit 会自动跑 check.js)
 git add -A && git commit -m "feat: 改了啥"
-git push origin main
+git push github main && git push origin main
 
 # 2. 切到部署分支,把最新的两个文件覆盖过去
 git checkout gh-pages
 git checkout main -- index.html apple-touch-icon.png
 git commit -am "deploy: 同步 index.html + 图标"
 
-# 3. 推送 + 切回 main
-git push origin gh-pages
+# 3. 推送(github 那条会触发 EdgeOne 重部署)+ 切回 main
+git push github gh-pages && git push origin gh-pages
 git checkout main
 ```
 
-- **EdgeOne 连了 Git**:第 3 步 push 完 `gh-pages` 后**自动重新部署**,几分钟后线上就是新的,无需手动操作 ✅
+- **EdgeOne 连了 GitHub**:第 3 步 `git push github gh-pages` 后**自动重新部署**,几分钟后线上就是新的,无需手动操作 ✅
 - **用的是 EdgeOne 直接上传 / 或 COS**:改完后到控制台**重新上传**这两个文件。
 - 只有 `index.html` / `apple-touch-icon.png` 变了才需要同步 `gh-pages`;只改文档不用碰 —— 这是方案 C 的好处。
+- 嫌两条命令麻烦,只推 `github` 也能上线;推 `origin` 只是顺手维护国内镜像。
 
 ---
 
 ## 常见问题
 
-**Q:EdgeOne 授权时找不到 Gitee?**
-确认进的是控制台 https://console.cloud.tencent.com/edgeone → Makers(不是 `cloud.tencent.com/document/...` 文档站);授权页会跳到 gitee.com 让你确认。实在没有 Gitee 选项就用「直接上传」两个文件。
+**Q:EdgeOne 连仓库后,生产分支下拉框读不到 `gh-pages`(暂无数据)?**
+这正是我们从 Gitee 换到 GitHub 的原因 —— EdgeOne 对 Gitee 的分支识别不行。**授权 GitHub、选 `WangDuoYuOnebillion/EatWhat`**,分支就能读到。仍不行就用「直接上传」两个文件兜底。
 
 **Q:构建失败 / 部署后 404?**
 八成是构建配置填错。纯静态站:构建命令**留空**、输出目录 **`./`**、分支 **`gh-pages`**。别选 React/Vue 之类框架预设。

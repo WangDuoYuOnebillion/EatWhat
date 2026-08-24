@@ -51,8 +51,11 @@
 
 改走**腾讯云 EdgeOne Pages**(用户在选项里拍板):免费 + 国内 CDN + **支持直连 Gitee 仓库**(`push` 到 `gh-pages` 自动重部署),也支持直接拖文件上传。查实关键点:国内控制台 `edgeone.cloud.tencent.com`;纯静态站构建配置=构建命令留空 / 输出目录 `./` / 生产分支 `gh-pages`;**默认预览域名可直接访问、不需备案**,只有自定义域名在中国大陆加速区才要备案。COS 继续留作兜底。据此重写了 DEPLOY.md,并给 ADR-022 加了修订段。方案 C 不变、反而更贴合(输出目录 `./` + 分支 `gh-pages` 只上线两个文件)。
 
+**补记(同会话,又晚些):EdgeOne 认不到 Gitee 分支,加推 GitHub**
+EdgeOne Makers 控制台入口更正为 `console.cloud.tencent.com/edgeone`(用户先打开成了文档站);产品已改名 Makers,功能不变。在「导入 Git 仓库」连 Gitee 后,**生产分支下拉搜 `gh-pages` 显示「暂无数据」** —— EdgeOne 对 Gitee 分支枚举不行。遂把 `main` + `gh-pages` **加推一份到 GitHub `WangDuoYuOnebillion/EatWhat`**(本机没装 `gh`,仓库由用户网页建,我加 `github` remote 后推;凭据走 GCM,已缓存未弹窗)。`git ls-remote github` 核验:main `a7f7a7a`、gh-pages `a4bfae9`,与本地一致。EdgeOne 改连 GitHub,Gitee 降为镜像。DEPLOY / ADR-022 / STATE 均已回填。
+
 **遗留**
-- 🔴 **EdgeOne Pages 部署**(注册腾讯云+实名→导入 Gitee 仓库→分支 `gh-pages`→构建配置→部署)—— 控制台操作,只有用户能点。
+- 🔴 **EdgeOne Makers 部署**(注册腾讯云+实名→导入 Git 仓库→**授权 GitHub**→选 `EatWhat`→分支 `gh-pages`/框架"其他静态"/构建命令空/输出 `./`→部署)—— 控制台操作,只有用户能点。
 - 🔴 验收 #1(手机 Safari)/ #2(微信内打开)/ #3 真机 / #5 真机加主屏 / #6(走一遍更新)—— 待上线后真机实测。
 
 ---
