@@ -8,6 +8,58 @@
 
 ## 2026-08-22
 
+### #014 · git init + pre-commit 钩子
+
+**做了什么**
+把项目变成 git 仓库(`main` 分支),初始提交含全部 12 个文件。这解决了 STATE 待决问题 #4 —— 之前连续三个会话在同一批文件上叠加改动,没有任何 diff 可回溯。
+
+**配置上的三个有意选择**
+
+1. **身份设在仓库内,不动全局。** 全局 `user.name` / `user.email` 都没配。我只设了 repo-local 的(`wangchen75` / `wangchen75@hetao101.com`),不碰用户的全局配置。名字是从邮箱前缀取的,随时可改:`git config user.name "你的名字"`。
+
+2. **`core.autocrlf=false` + `.gitattributes` 钉死 LF。** 这个项目从头到尾是 LF(每次构建都验过 CR=0),而 Windows 上 git 默认 `autocrlf=true` 会在检出时转成 CRLF —— 那会让 `index.html` 行尾变得不一致,而且 diff 会整片飘红。用 `* text=auto eol=lf` 显式钉死,比只依赖本地配置更可靠(配置不随仓库走,`.gitattributes` 走)。
+
+3. **`.gitignore` 保持极简。** 项目零依赖零构建,没有产物目录要忽略,列的都是环境噪音(OS / 编辑器 / node_modules / 临时文件)。
+
+**pre-commit 钩子**
+
+放在 `.githooks/pre-commit`,提交前自动跑 `check.js`,不过就中止提交。
+
+**关键设计:校验暂存区快照,不是工作区。** 用 `git show :index.html` 取出真正要提交的那一份来校验。否则会出现"工作区已经改好、暂存的还是坏的"却照样提交成功 —— 这是钩子最常见的失效方式。
+
+其他细节:
+- 只在 `index.html` 进入本次提交时才跑,不拖慢纯文档提交
+- 没装 node 时只提醒不拦截(不能因为环境缺件就让人提交不了)
+- `.githooks` 而不是 `.git/hooks`,因为后者不进版本控制。代价是 clone 后要跑一次 `git config core.hooksPath .githooks`,已写进 README
+
+**验证**
+
+| 测试 | 结果 |
+|---|---|
+| 初始提交时钩子自动触发 | ✅ 校验输出出现在提交之前,0 error 后正常提交 |
+| 把主料 id 改错 → 提交 | ✅ 被拦住,HEAD 未变 |
+| **暂存区是坏的、工作区已修好 → 提交** | ✅ **仍被拦住** —— 证实校验的是暂存快照而非工作区 |
+| 测试后恢复 | ✅ `git diff HEAD` 无差异,`check.js` 退出码 0 |
+
+**踩到的一个坑**
+
+`chmod +x .githooks/pre-commit` 在 Windows 上不生效 —— `core.filemode` 默认 false,可执行位不会记进 index,提交后模式是 `100644`。在 Linux / macOS 上 clone 出来钩子直接跑不起来。用 `git update-index --chmod=+x` 显式设置,改成 `100755`。
+
+**提交历史**
+
+```
+ecc8789 chore: 给 pre-commit 钩子加可执行位
+76c404b init: 小付，今天吃什么？v1.0
+```
+
+**影响文件:** `.gitattributes`、`.gitignore`、`.githooks/pre-commit`(均为新增)、`README.md`、`STATE.md`、`WORKLOG.md`
+
+**遗留问题**
+- **没有远端,没有 CI。** 钩子只在本地生效,而且能用 `--no-verify` 绕过。真要强制约束得先决定推到哪(GitHub / Gitee / 自建)
+- 历史是从当前状态起步的单个初始提交。之前 P0–P4 的演进过程只在 WORKLOG 里,git 里没有 —— 补造历史是伪造,不做
+
+---
+
 ### #013 · P4 校验脚本落盘
 
 **做了什么**

@@ -50,6 +50,8 @@
 |---|---|
 | [`index.html`](index.html) | 应用本身。单文件,零依赖,约 4050 行 |
 | [`check.js`](check.js) | 数据校验脚本。改完菜谱/食材跑一下,见下文「改完数据一定要自检」 |
+| `.githooks/pre-commit` | 提交前自动跑 `check.js`。clone 后需 `git config core.hooksPath .githooks` 启用 |
+| `.gitattributes` | 把全项目行尾钉死为 LF(Windows 上 git 默认会转 CRLF) |
 | [`CLAUDE.md`](CLAUDE.md) | **项目总纲**。红线、会话流程、实现坐标速查 —— 接手这个项目先看它 |
 | [`STATE.md`](STATE.md) | **当前状态卡**。现在做到哪、下一步做什么、待决问题。每次会话结尾重写 |
 | [`ROADMAP.md`](ROADMAP.md) | **开发路线图**。P0–P7 七个阶段,一个阶段一个会话,每阶段带可实测的验收标准 |
@@ -105,6 +107,20 @@ node check.js --selftest
 它会往数据里故意注入 8 类错误各一个,验证每一类都能被准确报出。
 
 也可以校验别的文件:`node check.js path/to/index.html`
+
+### 让它自动跑(提交前拦截)
+
+仓库里带了一个 pre-commit 钩子。**clone 下来之后跑一次这句**,之后每次 `git commit` 就会自动校验:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+> 这一句不能省 —— `core.hooksPath` 是本地配置,不随仓库一起 clone。
+
+钩子只在 `index.html` 进入本次提交时才跑,而且校验的是**暂存区里那一份**,不是工作区那一份。所以"工作区已经改好、暂存的还是坏的"这种情况也会被拦住。
+
+校验不过就中止提交并列出 error。确有理由跳过:`git commit --no-verify`。
 
 ### 浏览器里的轻量自检
 
