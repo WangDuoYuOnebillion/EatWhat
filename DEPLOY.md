@@ -9,7 +9,7 @@
 
 原计划托管到 **Gitee Pages**,但实操时发现仓库「服务」菜单里**根本没有 Gitee Pages 选项**。查证:**Gitee 免费 Pages 已于 2024-05 整体下线,Pages Pro 也停了个人购买入口** —— 与账号无关,这条路对所有个人用户都没了。
 
-改走 **腾讯云 EdgeOne Pages**(完全免费 + 国内 CDN + 支持直连我们已有的 Gitee 仓库)。原兜底 COS 降为二线。详见 [ADR-022](DECISIONS.md)。
+改走 **腾讯云 EdgeOne Makers**(原名 EdgeOne Pages,2026-06 改名,功能不变)—— 完全免费 + 国内 CDN + 支持直连我们已有的 Gitee 仓库。原兜底 COS 降为二线。详见 [ADR-022](DECISIONS.md)。
 
 ---
 
@@ -19,7 +19,7 @@
 |---|---|---|
 | 代码仓库 | **Gitee `wangchen1995/eat-what`**(方案 C:单独 `gh-pages` 部署分支) | 代码已推上去了;`gh-pages` 分支**只含 `index.html` + `apple-touch-icon.png`**,部署时不带内部文档 |
 | ~~托管平台~~ | ~~Gitee Pages~~ | ❌ 已下线,弃用 |
-| **托管平台(主线)** | **腾讯云 EdgeOne Pages** | 完全免费、国内 CDN、能直连 Gitee 仓库(push 即自动重部署,没有 Gitee 那种"手动点更新") |
+| **托管平台(主线)** | **腾讯云 EdgeOne Makers**(原 EdgeOne Pages) | 完全免费、国内 CDN、能直连 Gitee 仓库(push 即自动重部署,没有 Gitee 那种"手动点更新") |
 | 托管平台(兜底) | 腾讯云 COS 静态网站 | EdgeOne 万一卡住时切它,月费几分钱 |
 | 域名 | **用 EdgeOne 分配的默认预览域名** | 默认域名可直接访问、**不需要备案**;自定义域名在中国大陆加速区才要备案,先不折腾 |
 
@@ -40,22 +40,24 @@ apple-touch-icon.png   ← 缺了它,加到主屏就是网页缩略图而不是�
 | 2 | 建公开仓库 `eat-what` | ✅ 已建 |
 | 3 | 推送 `main` + `gh-pages` | ✅ 已推送(远端哈希与本地一致) |
 | 4 | 注册腾讯云 + 实名 | 🔴 **待你做** |
-| 5 | EdgeOne Pages 连 Gitee 部署 | 🔴 **待你做**(控制台操作,我点不了) |
+| 5 | EdgeOne Makers 连 Gitee 部署 | 🔴 **待你做**(控制台操作,我点不了) |
 | 6 | 手机真机验收 | 🔴 待 #5 出地址后测 |
 
 ---
 
-## 🔴 你要做的:EdgeOne Pages 部署(主线)
+## 🔴 你要做的:EdgeOne Makers 部署(主线)
 
-控制台:**https://edgeone.cloud.tencent.com/**(国内站,用腾讯云账号登录)
+> 注意:EdgeOne **Pages 已更名为 Makers**(2026-06 品牌升级),功能不变。下面按新名字走。
+> **控制台入口(别进文档站):** https://console.cloud.tencent.com/edgeone
+> `cloud.tencent.com/document/...` 是文档,不是控制台。
 
 ### 1. 注册 + 实名
 - 用微信/QQ 登录腾讯云,完成**实名认证**(个人实名即可)。
 
-### 2. 新建 Pages 项目 → 导入 Git 仓库
-- 进 EdgeOne 控制台 → 找到 **Pages** → 「新建项目 / 创建项目」。
-- 部署方式选 **「导入 Git 仓库」**。
-- 授权 **Gitee**(会跳到 Gitee 让你点同意授权 EdgeOne 读取仓库),然后选中 `wangchen1995/eat-what`。
+### 2. 进 Makers → 场景选择大厅 → 导入 Git 仓库
+- 进 [边缘安全加速平台 EO 控制台](https://console.cloud.tencent.com/edgeone) → 左侧找到 **Makers**。
+- 首次进入会出现**「场景选择大厅」**,四个入口:**导入 Git 仓库** / 从模板开始 / 直接上传 / Agent 模板 —— 选 **「导入 Git 仓库」**。
+- 授权 **Gitee**(跳到 Gitee 点同意,让 EdgeOne 能读你的仓库),然后选中 `wangchen1995/eat-what`。
 
 ### 3. 构建配置(纯静态,别填错)
 
@@ -141,7 +143,7 @@ git checkout main
 ## 常见问题
 
 **Q:EdgeOne 授权时找不到 Gitee?**
-确认用的是国内站 https://edgeone.cloud.tencent.com/;授权页会跳到 gitee.com 让你确认。实在没有 Gitee 选项就用「直接上传」两个文件。
+确认进的是控制台 https://console.cloud.tencent.com/edgeone → Makers(不是 `cloud.tencent.com/document/...` 文档站);授权页会跳到 gitee.com 让你确认。实在没有 Gitee 选项就用「直接上传」两个文件。
 
 **Q:构建失败 / 部署后 404?**
 八成是构建配置填错。纯静态站:构建命令**留空**、输出目录 **`./`**、分支 **`gh-pages`**。别选 React/Vue 之类框架预设。

@@ -28,7 +28,7 @@
 
 **P8 还没关闭。** 就差两步,**都在用户侧**(控制台操作,我登不进去):
 
-1. 🔴 **注册腾讯云 + 实名 → EdgeOne Pages 连 Gitee 部署**。控制台 `edgeone.cloud.tencent.com`,新建项目→导入 Git 仓库→选 `wangchen1995/eat-what`→**生产分支 `gh-pages`、构建命令留空、输出目录 `./`**、加速区中国大陆。完整步骤见 [DEPLOY.md](DEPLOY.md)。
+1. 🔴 **注册腾讯云 + 实名 → EdgeOne Makers 连 Gitee 部署**。(EdgeOne Pages 已改名 Makers,功能不变。)控制台 `console.cloud.tencent.com/edgeone` → Makers → 场景选择大厅→导入 Git 仓库→选 `wangchen1995/eat-what`→**生产分支 `gh-pages`、框架预设"其他/静态"、构建命令留空、输出目录 `./`**、加速区中国大陆。完整步骤见 [DEPLOY.md](DEPLOY.md)。
 2. 🔴 **真机验收** —— #1 手机访问 / #2 微信打开 / #3 真机重开存住 / #5 真机加主屏图标 / #6 走一遍更新流程。
 
 本地能验的(#3 存储 / #4 无红条 / #5 图标就位 / #7 check.js 零 error)会话 #7 已全过。
