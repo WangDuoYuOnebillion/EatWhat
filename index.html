@@ -439,6 +439,13 @@ body.kb .stickycta{display:none}
 }
 .roll .face{font-size:52px;line-height:1;margin-bottom:8px}
 .roll h3{font-size:21px;margin-bottom:4px}
+/* 骰子会摆出「差一两样」的菜(见 ROLL_MIN),缺料提示得有样式。
+   现有 .miss 只写在 .dish 下,够不到这里 */
+.roll .miss{
+  margin-top:10px;padding-top:8px;border-top:1px dashed var(--line-2);
+  font-size:12px;color:var(--warn);line-height:1.5;
+}
+.roll .miss b{font-weight:600}
 .roll.spin .face{animation:flip .42s ease}
 @keyframes flip{0%{transform:rotateY(0) scale(1)}50%{transform:rotateY(90deg) scale(.7);opacity:.3}100%{transform:rotateY(0) scale(1)}}
 
@@ -2987,12 +2994,23 @@ function viewDish(){
 
   /* 摆一摆结果 */
   if(S.roll){
-    var rr=recOf(S.roll);
+    /* 从 mm.list 里取整条,而不是 recOf() 只拿菜谱 —— 骰子现在会摆出
+       「差一两样」的菜(见 doRoll 的 ROLL_MIN),缺什么必须写在卡上,
+       否则等于悄悄递一道做不了的菜。从 list 里取还顺带有个好处:
+       事后补齐食材,这行提示会自己消失,不需要额外刷新。 */
+    var rx=null;
+    for(i=0;i<list.length;i++) if(list[i].r.id===S.roll){ rx=list[i]; break; }
+    var rr=rx?rx.r:recOf(S.roll);
     if(rr){
       h+='<div class="roll" id="rollBox"><div class="face">'+rr.e+'</div>'
        + '<h3>'+esc(rr.n)+'</h3>'
-       + '<div class="hint">'+DCATS[rr.cat]+' · '+rr.t+' 分钟 · '+rr.nu.k+' kcal/份</div>'
-       + '<div style="display:flex;gap:8px;margin-top:12px">'
+       + '<div class="hint">'+DCATS[rr.cat]+' · '+rr.t+' 分钟 · '+rr.nu.k+' kcal/份</div>';
+      if(rx && rx.missTotal){
+        var rms=[], rma=rx.missMain.concat(rx.missSub).concat(rx.missSeason);
+        for(i=0;i<rma.length;i++) rms.push(nameOf(rma[i]));
+        h+='<div class="miss"><b>差 '+rx.missTotal+' 样:</b>'+esc(rms.join('、'))+'</div>';
+      }
+      h+='<div style="display:flex;gap:8px;margin-top:12px">'
        + '<button class="btn plain sm" id="rollAgain" style="flex:1">再摆一次</button>'
        + '<button class="btn sm" data-open="'+rr.id+'" style="flex:1">就做这个</button></div></div>';
     }
@@ -3549,11 +3567,26 @@ function shuffle(a){
    第 8 层 · 摆一摆 / 配一桌
    ========================================================================== */
 
+/* 骰子池子的下限:不足这个数就把下一档也放进来。
+   为什么用阈值,而不是原来的「上一档全空才补下一档」——
+   tier 0 要求主料 + 辅料 + 调味一样不缺,门槛比看起来高得多。
+   实测(默认偏好、调味基础包开):勾 6 样食材时 tier0 只有 3 道、tier1 有 48 道;
+   勾满 16 样 tier0 也才 9 道。「全空才补」等于让骰子永远在那 3 道里打转,
+   连点十次只是来回换,用户看起来就是坏了。
+   openWeek() / doDayPlan() 本来就是「不够就补」,这里跟它们对齐。 */
+var ROLL_MIN=12;
+
 function doRoll(){
-  var mm=match(), pool=[];
-  for(var i=0;i<mm.list.length;i++) if(mm.list[i].tier===0) pool.push(mm.list[i].r);
-  if(!pool.length) for(i=0;i<mm.list.length;i++) if(mm.list[i].tier===1) pool.push(mm.list[i].r);
-  if(!pool.length) for(i=0;i<mm.list.length;i++) pool.push(mm.list[i].r);
+  var mm=match(), pool=[], i, t;
+  /* tier 0(完全够料)全都要 */
+  for(i=0;i<mm.list.length;i++) if(mm.list[i].tier===0) pool.push(mm.list[i].r);
+  /* 不够 ROLL_MIN 就按分数从高到低补下一档,补到够就停 ——
+     关键是「补到够」而不是「把整档吞下来」:实测勾 6 样食材时 tier1 有 48 道,
+     整档吞下去会让 90% 的结果都是「差 1 样」,骰子就从「今天做什么」
+     变成了「明天买什么」。mm.list 已按 tier→分数排好,取前几道就是最接近能做的几道。 */
+  for(t=1;t<=2 && pool.length<ROLL_MIN;t++)
+    for(i=0;i<mm.list.length && pool.length<ROLL_MIN;i++)
+      if(mm.list[i].tier===t) pool.push(mm.list[i].r);
   if(!pool.length){ toast('先去勾几样食材'); go('pick'); return; }
 
   var fresh=[]; for(i=0;i<pool.length;i++) if(!inArr(S.rolled,pool[i].id)) fresh.push(pool[i]);
