@@ -392,6 +392,11 @@ score = 100
 
 **风格:暖米色杂志风 / 纸质食谱书**
 
+> **唯一事实来源是 [index.html](index.html) 的 `:root{}` 块**(17 个 token,全部只定义一次、无别处覆盖)。
+> 下表照它逐条校对过(2026-08-25)。改 token 必须同步改这张表 —— [CLAUDE.md](CLAUDE.md) 红线第 7 条。
+
+**颜色(13 个)**
+
 | Token | 值 | 用途 |
 |---|---|---|
 | `--bg` | `#F5F0E8` | 页面底色 |
@@ -399,15 +404,35 @@ score = 100
 | `--surface-2` | `#EDE4D3` | 次级面、标签底 |
 | `--ink` | `#2B2015` | 正文 |
 | `--ink-2` | `#7A6A56` | 次级文字 |
+| `--ink-3` | `#A2937E` | **三级文字** —— 分档标题旁的道数、说明小字、各处 muted 文本 |
 | `--primary` | `#8B4513` | 赭石 · 标题、主按钮 |
 | `--primary-soft` | `#A9673A` | 悬停、次级强调 |
-| `--warn` | `#C2703D` | 临期橙 |
+| `--warn` | `#C2703D` | **橙色强调** —— 临期徽标、**缺料提示**、辣度标签、收藏星、提示条边框。**不只是"临期"** |
 | `--danger` | `#A63A2E` | 过期红、忌口 |
-| `--ok` | `#5C7A4A` | 健康绿、可做 |
-| `--line` | `#DCCFB8` | 1px 分隔线 |
+| `--ok` | `#5C7A4A` | 健康绿、可做、能消耗临期 |
+| `--line` | `#DCCFB8` | 1px 分隔线(默认) |
+| `--line-2` | `#C9B99C` | **二级分隔线(深一档)** —— 卡片外框、分档标题下划线、缺料行的虚线上边框 |
 
-- **标题字体:** `'Noto Serif SC','Source Han Serif SC','Songti SC','SimSun',serif`
-- **正文字体:** `'PingFang SC','Microsoft YaHei','Hiragino Sans GB',sans-serif`
+**字体(2 个)**
+
+| Token | 值 |
+|---|---|
+| `--serif` | `'Noto Serif SC','Source Han Serif SC','Songti SC','STSong','SimSun',serif` |
+| `--sans` | `-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei','Hiragino Sans GB','Helvetica Neue',Arial,sans-serif` |
+
+标题用 `--serif`,正文用 `--sans`。`--sans` 打头的 `-apple-system` / `BlinkMacSystemFont` 是给 iOS / Chrome
+走系统字的,**不能删** —— 删了 iOS 上会掉到 PingFang 之外的回退字。
+
+**布局(2 个)**
+
+| Token | 值 | 用途 |
+|---|---|---|
+| `--tabh` | `58px` | 底部 Tab 栏高度。吸底 CTA 与列表底部留白都靠它算,不要写死 |
+| `--frame` | `480px` | 手机画框宽度上限(见下方「目标平台与布局」) |
+
+**不是 token 但属于规范的一个值**
+
+`body{background:#E4DBC9}` —— 画框外的底色,比 `--bg` 深一档。手机上被 `#app` 完全盖住,只在桌面浏览器里露出。
 - **无阴影**:层级只靠 1px 实线、底色差和留白表达
 - **圆角**:卡片 4px(纸感,不用大圆角)
 - **纸纹**:极淡的 CSS 渐变噪点,不超过 2% 对比度
